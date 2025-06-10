@@ -1112,9 +1112,9 @@ export class WordPressManager {
         .replace('password_here', this.config.mysql.sharedDbPassword || '')
         .replace('localhost', this.config.mysql.host || 'localhost');
 
-      // Generate unique security keys
+      // Generate unique security keys (using safer characters to avoid PHP syntax issues)
       const generateKey = () => {
-        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:,.<>?';
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*()-_=+[]{}|:,.<>';
         let result = '';
         for (let i = 0; i < 64; i++) {
           result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -1122,10 +1122,22 @@ export class WordPressManager {
         return result;
       };
 
-      // Replace the placeholder security keys with unique values
-      config = config
-        .replace("'put your unique phrase here'", `'${generateKey()}'`)
-        .replace(/put your unique phrase here/g, () => `'${generateKey()}'`);
+      // Replace each security key individually to ensure proper replacement
+      const keys = [
+        'AUTH_KEY',
+        'SECURE_AUTH_KEY', 
+        'LOGGED_IN_KEY',
+        'NONCE_KEY',
+        'AUTH_SALT',
+        'SECURE_AUTH_SALT',
+        'LOGGED_IN_SALT',
+        'NONCE_SALT'
+      ];
+
+      keys.forEach(keyName => {
+        const pattern = new RegExp(`define\\s*\\(\\s*'${keyName}'\\s*,\\s*'put your unique phrase here'\\s*\\)`, 'g');
+        config = config.replace(pattern, `define('${keyName}', '${generateKey()}')`);
+      });
 
       // Add WordPress site URL configuration before the table prefix
       const siteUrlConfig = `
