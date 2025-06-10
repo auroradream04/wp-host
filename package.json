@@ -1,0 +1,26 @@
+{
+  "name": "wp-hosting-automation",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/auroradream04/wp-hosting-automation.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/auroradream04/wp-hosting-automation/issues"
+  },
+  "homepage": "https://github.com/auroradream04/wp-hosting-automation#readme",
+  "description": "",
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "typescript": "^5.8.3"
+  }
+}
