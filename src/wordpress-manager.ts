@@ -529,6 +529,116 @@ export class WordPressManager {
         KEY type_status_date (post_type,post_status,post_date,ID),
         KEY post_parent (post_parent),
         KEY post_author (post_author)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_postmeta table - stores post metadata
+      `CREATE TABLE wp_postmeta (
+        meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        post_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        meta_key varchar(255) DEFAULT NULL,
+        meta_value longtext,
+        PRIMARY KEY (meta_id),
+        KEY post_id (post_id),
+        KEY meta_key (meta_key(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_comments table - stores comments
+      `CREATE TABLE wp_comments (
+        comment_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        comment_post_ID bigint(20) unsigned NOT NULL DEFAULT '0',
+        comment_author tinytext NOT NULL,
+        comment_author_email varchar(100) NOT NULL DEFAULT '',
+        comment_author_url varchar(200) NOT NULL DEFAULT '',
+        comment_author_IP varchar(100) NOT NULL DEFAULT '',
+        comment_date datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        comment_date_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        comment_content text NOT NULL,
+        comment_karma int(11) NOT NULL DEFAULT '0',
+        comment_approved varchar(20) NOT NULL DEFAULT '1',
+        comment_agent varchar(255) NOT NULL DEFAULT '',
+        comment_type varchar(20) NOT NULL DEFAULT 'comment',
+        comment_parent bigint(20) unsigned NOT NULL DEFAULT '0',
+        user_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        PRIMARY KEY (comment_ID),
+        KEY comment_post_ID (comment_post_ID),
+        KEY comment_approved_date_gmt (comment_approved,comment_date_gmt),
+        KEY comment_date_gmt (comment_date_gmt),
+        KEY comment_parent (comment_parent),
+        KEY comment_author_email (comment_author_email(10))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_commentmeta table - stores comment metadata
+      `CREATE TABLE wp_commentmeta (
+        meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        comment_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        meta_key varchar(255) DEFAULT NULL,
+        meta_value longtext,
+        PRIMARY KEY (meta_id),
+        KEY comment_id (comment_id),
+        KEY meta_key (meta_key(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_terms table - stores taxonomy terms
+      `CREATE TABLE wp_terms (
+        term_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        name varchar(200) NOT NULL DEFAULT '',
+        slug varchar(200) NOT NULL DEFAULT '',
+        term_group bigint(10) NOT NULL DEFAULT 0,
+        PRIMARY KEY (term_id),
+        KEY slug (slug(191)),
+        KEY name (name(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_termmeta table - stores term metadata
+      `CREATE TABLE wp_termmeta (
+        meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        term_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        meta_key varchar(255) DEFAULT NULL,
+        meta_value longtext,
+        PRIMARY KEY (meta_id),
+        KEY term_id (term_id),
+        KEY meta_key (meta_key(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_term_taxonomy table - stores taxonomy information
+      `CREATE TABLE wp_term_taxonomy (
+        term_taxonomy_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        term_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        taxonomy varchar(32) NOT NULL DEFAULT '',
+        description longtext NOT NULL,
+        parent bigint(20) unsigned NOT NULL DEFAULT '0',
+        count bigint(20) NOT NULL DEFAULT '0',
+        PRIMARY KEY (term_taxonomy_id),
+        UNIQUE KEY term_id_taxonomy (term_id,taxonomy),
+        KEY taxonomy (taxonomy)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_term_relationships table - relates posts to taxonomy terms
+      `CREATE TABLE wp_term_relationships (
+        object_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        term_taxonomy_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        term_order int(11) NOT NULL DEFAULT '0',
+        PRIMARY KEY (object_id,term_taxonomy_id),
+        KEY term_taxonomy_id (term_taxonomy_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_links table - stores links/blogroll
+      `CREATE TABLE wp_links (
+        link_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        link_url varchar(255) NOT NULL DEFAULT '',
+        link_name varchar(255) NOT NULL DEFAULT '',
+        link_image varchar(255) NOT NULL DEFAULT '',
+        link_target varchar(25) NOT NULL DEFAULT '',
+        link_description varchar(255) NOT NULL DEFAULT '',
+        link_visible varchar(20) NOT NULL DEFAULT 'Y',
+        link_owner bigint(20) unsigned NOT NULL DEFAULT '1',
+        link_rating int(11) NOT NULL DEFAULT '0',
+        link_updated datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        link_rel varchar(255) NOT NULL DEFAULT '',
+        link_notes mediumtext NOT NULL,
+        link_rss varchar(255) NOT NULL DEFAULT '',
+        PRIMARY KEY (link_id),
+        KEY link_visible (link_visible)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`
     ];
 
@@ -682,7 +792,14 @@ export class WordPressManager {
       ['auto_plugin_theme_update_emails', 'a:0:{}'],
       ['auto_update_core_dev', 'enabled'],
       ['auto_update_core_minor', 'enabled'],
-      ['auto_update_core_major', 'enabled']
+      ['auto_update_core_major', 'enabled'],
+      // Critical installation completion markers
+      ['fresh_site', '1'],
+      ['WPLANG', ''],
+      ['initial_db_version', '57155'],
+      ['can_compress_scripts', '1'],
+      ['db_upgraded', ''],
+      ['wp_user_roles', 'a:5:{s:13:"administrator";a:2:{s:4:"name";s:13:"Administrator";s:12:"capabilities";a:61:{s:13:"switch_themes";b:1;s:11:"edit_themes";b:1;s:16:"activate_plugins";b:1;s:12:"edit_plugins";b:1;s:10:"edit_users";b:1;s:10:"edit_files";b:1;s:14:"manage_options";b:1;s:17:"moderate_comments";b:1;s:17:"manage_categories";b:1;s:12:"manage_links";b:1;s:12:"upload_files";b:1;s:6:"import";b:1;s:15:"unfiltered_html";b:1;s:10:"edit_posts";b:1;s:17:"edit_others_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:10:"edit_pages";b:1;s:4:"read";b:1;s:8:"level_10";b:1;s:7:"level_9";b:1;s:7:"level_8";b:1;s:7:"level_7";b:1;s:7:"level_6";b:1;s:7:"level_5";b:1;s:7:"level_4";b:1;s:7:"level_3";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:17:"edit_others_pages";b:1;s:20:"edit_published_pages";b:1;s:13:"publish_pages";b:1;s:12:"delete_pages";b:1;s:19:"delete_others_pages";b:1;s:22:"delete_published_pages";b:1;s:12:"delete_posts";b:1;s:19:"delete_others_posts";b:1;s:22:"delete_published_posts";b:1;s:20:"delete_private_posts";b:1;s:18:"edit_private_posts";b:1;s:18:"read_private_posts";b:1;s:20:"delete_private_pages";b:1;s:18:"edit_private_pages";b:1;s:18:"read_private_pages";b:1;s:12:"delete_users";b:1;s:12:"create_users";b:1;s:17:"unfiltered_upload";b:1;s:14:"edit_dashboard";b:1;s:14:"update_plugins";b:1;s:14:"delete_plugins";b:1;s:15:"install_plugins";b:1;s:13:"update_themes";b:1;s:14:"install_themes";b:1;s:11:"update_core";b:1;s:10:"list_users";b:1;s:12:"remove_users";b:1;s:13:"promote_users";b:1;s:18:"edit_theme_options";b:1;s:13:"delete_themes";b:1;s:6:"export";b:1;}}s:6:"editor";a:2:{s:4:"name";s:6:"Editor";s:12:"capabilities";a:34:{s:17:"moderate_comments";b:1;s:17:"manage_categories";b:1;s:12:"manage_links";b:1;s:12:"upload_files";b:1;s:15:"unfiltered_html";b:1;s:10:"edit_posts";b:1;s:17:"edit_others_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:10:"edit_pages";b:1;s:4:"read";b:1;s:7:"level_7";b:1;s:7:"level_6";b:1;s:7:"level_5";b:1;s:7:"level_4";b:1;s:7:"level_3";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:17:"edit_others_pages";b:1;s:20:"edit_published_pages";b:1;s:13:"publish_pages";b:1;s:12:"delete_pages";b:1;s:19:"delete_others_pages";b:1;s:22:"delete_published_pages";b:1;s:12:"delete_posts";b:1;s:19:"delete_others_posts";b:1;s:22:"delete_published_posts";b:1;s:20:"delete_private_posts";b:1;s:18:"edit_private_posts";b:1;s:18:"read_private_posts";b:1;s:20:"delete_private_pages";b:1;s:18:"edit_private_pages";b:1;s:18:"read_private_pages";b:1;}}s:6:"author";a:2:{s:4:"name";s:6:"Author";s:12:"capabilities";a:10:{s:12:"upload_files";b:1;s:10:"edit_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:4:"read";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:12:"delete_posts";b:1;s:22:"delete_published_posts";b:1;}}s:11:"contributor";a:2:{s:4:"name";s:11:"Contributor";s:12:"capabilities";a:5:{s:10:"edit_posts";b:1;s:4:"read";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:12:"delete_posts";b:1;}}s:10:"subscriber";a:2:{s:4:"name";s:10:"Subscriber";s:12:"capabilities";a:2:{s:4:"read";b:1;s:7:"level_0";b:1;}}}']
     ];
 
     for (const [option_name, option_value] of options) {
@@ -709,6 +826,37 @@ export class WordPressManager {
       `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type, to_ping, pinged) 
        VALUES (?, ?, ?, ?, 'Sample Page', '', 'publish', 'closed', 'open', 'sample-page', ?, ?, ?, 'page', '', '')`,
       [userId, now, now, 'This is an example page. It\'s different from a blog post because it will stay in one place and will show up in your site navigation (in most themes). Most people start with an About page that introduces them to potential site visitors. It might say something like this:\n\nHi there! I\'m a bike messenger by day, aspiring actor by night, and this is my website. I live in Los Angeles, have a great dog named Jack, and I like piña coladas. (And gettin\' caught in the rain.)\n\n...or something like this:\n\nThe XYZ Donut Company was founded in 1971, and has been providing quality donuts to the public ever since. Located in Gotham City, XYZ employs over 2,000 people and does all kinds of awesome things for the Gotham community.\n\nAs a new WordPress user, you should go to your dashboard to delete this page and create new pages for your content. Have fun!', now, now, `${siteUrl}/?page_id=2`]
+    );
+
+    // Create default category "Uncategorized"
+    await connection.execute(
+      `INSERT INTO wp_terms (name, slug, term_group) VALUES ('Uncategorized', 'uncategorized', 0)`
+    );
+
+    // Get the term ID
+    const [termResult] = await connection.execute(
+      'SELECT term_id FROM wp_terms WHERE slug = ?',
+      ['uncategorized']
+    );
+    const termId = termResult[0].term_id;
+
+    // Create taxonomy entry for the category
+    await connection.execute(
+      `INSERT INTO wp_term_taxonomy (term_id, taxonomy, description, parent, count) VALUES (?, 'category', '', 0, 1)`,
+      [termId]
+    );
+
+    // Get the term_taxonomy_id
+    const [termTaxResult] = await connection.execute(
+      'SELECT term_taxonomy_id FROM wp_term_taxonomy WHERE term_id = ? AND taxonomy = ?',
+      [termId, 'category']
+    );
+    const termTaxonomyId = termTaxResult[0].term_taxonomy_id;
+
+    // Assign the hello world post to the uncategorized category
+    await connection.execute(
+      `INSERT INTO wp_term_relationships (object_id, term_taxonomy_id, term_order) VALUES (1, ?, 0)`,
+      [termTaxonomyId]
     );
   }
 
