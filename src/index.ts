@@ -403,6 +403,55 @@ program
   });
 
 program
+  .command('reset-wordpress')
+  .description('Reset WordPress tables in databases (keeps databases and users intact)')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    console.log('🔄 WordPress Table Reset');
+    console.log('========================');
+    console.log('⚠️  WARNING: This will delete all WordPress data but keep databases and users!');
+    
+    if (!options.confirm) {
+      console.log('\n❌ This is a destructive operation. Use --confirm flag to proceed.');
+      console.log('Example: wp-hosting-automation reset-wordpress --confirm');
+      process.exit(1);
+    }
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    let databaseManager: DatabaseManager | null = null;
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize database manager
+      databaseManager = new DatabaseManager(config);
+      await databaseManager.initialize();
+
+      // Reset WordPress tables
+      await databaseManager.resetWordPressTables();
+      
+      console.log('\n✅ WordPress reset completed successfully!');
+      console.log('🚀 You can now run deployment again for a fresh WordPress setup.');
+      
+    } catch (error) {
+      console.error(`❌ WordPress reset failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    } finally {
+      if (databaseManager) {
+        await databaseManager.close();
+      }
+    }
+  });
+
+program
   .command('cleanup-databases')
   .description('Remove all databases and users (WARNING: DESTRUCTIVE!)')
   .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')

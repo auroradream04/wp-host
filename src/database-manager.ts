@@ -179,6 +179,73 @@ export class DatabaseManager {
   }
 
   /**
+   * Reset WordPress tables in all databases (keeps databases and users intact)
+   * This is safer than full cleanup as it only removes WordPress data
+   */
+  async resetWordPressTables(): Promise<void> {
+    console.log('\n🔄 Resetting WordPress tables in all databases...');
+    console.log('⚠️  WARNING: This will delete all WordPress data but keep databases and users!');
+
+    for (const site of this.config.sites) {
+      const databaseName = site.database_name!;
+
+      try {
+        console.log(`\n🗑️  Resetting WordPress tables for ${site.site_name}:`);
+        
+        // Check if database exists
+        const dbExists = await this.mysqlManager.databaseExists(databaseName);
+        if (!dbExists) {
+          console.log(`   ℹ️  Database ${databaseName} doesn't exist, skipping`);
+          continue;
+        }
+
+        // Connect to the specific database
+        const mysql = require('mysql2/promise');
+        const connection = await mysql.createConnection({
+          host: this.config.mysql.host,
+          port: this.config.mysql.port,
+          user: this.config.mysql.rootUser,
+          password: this.config.mysql.rootPassword,
+          database: databaseName
+        });
+
+        // Get all tables that start with 'wp_'
+        const [tables] = await connection.execute(
+          "SHOW TABLES LIKE 'wp_%'"
+        );
+
+        if (Array.isArray(tables) && tables.length > 0) {
+          console.log(`   📊 Found ${tables.length} WordPress tables to remove`);
+          
+          // Disable foreign key checks to avoid dependency issues
+          await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+          
+          // Drop each WordPress table
+          for (const tableRow of tables) {
+            const tableName = Object.values(tableRow as any)[0] as string;
+            await connection.execute(`DROP TABLE IF EXISTS \`${tableName}\``);
+            console.log(`   ✅ Dropped table: ${tableName}`);
+          }
+          
+          // Re-enable foreign key checks
+          await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+          
+          console.log(`   ✅ All WordPress tables removed from ${databaseName}`);
+        } else {
+          console.log(`   ℹ️  No WordPress tables found in ${databaseName}`);
+        }
+
+        await connection.end();
+
+      } catch (error) {
+        console.error(`   ❌ Error resetting ${site.site_name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    console.log('\n✅ WordPress table reset completed.');
+  }
+
+  /**
    * Clean up (remove) databases and users for all sites
    * WARNING: This will delete all data!
    */
