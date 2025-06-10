@@ -79,8 +79,11 @@ export class WordPressManager {
         throw new Error('WordPress installation verification failed');
       }
 
-      // Step 6: Complete WordPress installation (setup wizard)
+      // Step 6: Generate site URL and create wp-config.php
       const siteUrl = this.generateSiteUrl(targetDir);
+      await this.createWordPressConfig(site, targetDir, siteUrl);
+
+      // Step 7: Complete WordPress installation (setup wizard)
       await this.completeWordPressInstallation(site, siteUrl);
 
       return {
@@ -343,20 +346,46 @@ export class WordPressManager {
   }
 
   /**
-   * Generate site URL based on directory path
+   * Generate site URL based on directory path and domain inference
    */
   private generateSiteUrl(targetDir: string): string {
-    // Try to determine the site URL based on directory structure
-    if (targetDir.includes('/var/www/html/')) {
-      const sitePath = targetDir.replace('/var/www/html/', '');
-      return `http://localhost/${sitePath}`;
-    } else if (targetDir.includes('/var/www/')) {
-      const sitePath = targetDir.replace('/var/www/', '');
-      return `http://localhost/${sitePath}`;
-    } else {
-      // Local development
-      return `http://localhost:8080`;
+    // Try to infer domain from directory structure
+    const normalizedPath = path.resolve(targetDir);
+    
+    // Common hosting patterns
+    if (normalizedPath.includes('/var/www/')) {
+      // Extract site name from path
+      const pathParts = normalizedPath.split('/');
+      const wwwIndex = pathParts.indexOf('www');
+      
+      if (wwwIndex >= 0 && pathParts.length > wwwIndex + 1) {
+        const siteName = pathParts[wwwIndex + 1];
+        
+        // Remove 'html' if it's part of the path
+        if (siteName === 'html' && pathParts.length > wwwIndex + 2) {
+          const actualSiteName = pathParts[wwwIndex + 2];
+          return `https://${actualSiteName}`;
+        } else {
+          return `https://${siteName}`;
+        }
+      }
     }
+    
+    // Extract domain from directory name as fallback
+    const dirName = path.basename(normalizedPath);
+    
+    // If directory name looks like a domain (contains dots)
+    if (dirName.includes('.')) {
+      return `https://${dirName}`;
+    }
+    
+    // If directory name is clean, add .com
+    if (dirName && dirName !== 'html' && dirName !== 'public_html') {
+      return `https://${dirName}.com`;
+    }
+    
+    // Last resort fallback
+    return `https://localhost`;
   }
 
   /**
@@ -583,5 +612,59 @@ export class WordPressManager {
     const skipped = results.filter(r => r.status === 'skipped').length;
 
     return { total, successful, failed, skipped };
+  }
+
+  /**
+   * Create wp-config.php file with proper database settings and site URL
+   */
+  private async createWordPressConfig(site: SiteConfig, targetDir: string, siteUrl: string): Promise<void> {
+    console.log(`   ⚙️  Creating wp-config.php...`);
+
+    try {
+      const wpConfigSamplePath = path.join(targetDir, 'wp-config-sample.php');
+      const wpConfigPath = path.join(targetDir, 'wp-config.php');
+
+      // Read the sample config
+      const sampleConfig = await fs.readFile(wpConfigSamplePath, 'utf8');
+
+      // Replace database settings
+      let config = sampleConfig
+        .replace('database_name_here', site.database_name || '')
+        .replace('username_here', site.db_user || '')
+        .replace('password_here', this.config.mysql.sharedDbPassword || '')
+        .replace('localhost', this.config.mysql.host || 'localhost');
+
+      // Add WordPress site URL and home URL
+      const siteUrlConfig = `
+// WordPress Site URL Configuration
+define('WP_HOME', '${siteUrl}');
+define('WP_SITEURL', '${siteUrl}');
+
+// Security keys (you should replace these with unique values)
+define('AUTH_KEY',         'put your unique phrase here');
+define('SECURE_AUTH_KEY',  'put your unique phrase here');
+define('LOGGED_IN_KEY',    'put your unique phrase here');
+define('NONCE_KEY',        'put your unique phrase here');
+define('AUTH_SALT',        'put your unique phrase here');
+define('SECURE_AUTH_SALT', 'put your unique phrase here');
+define('LOGGED_IN_SALT',   'put your unique phrase here');
+define('NONCE_SALT',       'put your unique phrase here');
+
+`;
+
+      // Insert site URL config before the database table prefix
+      config = config.replace(
+        /(\$table_prefix\s*=\s*'wp_';)/,
+        siteUrlConfig + '$1'
+      );
+
+      // Write the config file
+      await fs.writeFile(wpConfigPath, config);
+      console.log(`   ✅ Created wp-config.php with domain: ${siteUrl}`);
+
+    } catch (error) {
+      console.log(`   ⚠️  Could not create wp-config.php: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   }
 } 
