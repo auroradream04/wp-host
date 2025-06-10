@@ -1,25 +1,50 @@
 {
-  "name": "wp-hosting-automation",
+  "name": "wp-host",
   "version": "1.0.0",
-  "main": "src/index.ts",
+  "description": "Automated WordPress hosting deployment tool for bulk site creation with MySQL database management",
+  "main": "dist/index.js",
+  "bin": {
+    "wp-host": "dist/index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "deploy": "npm run build && node dist/index.js"
+    "deploy": "npm run build && node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
+  "keywords": [
+    "wordpress",
+    "hosting",
+    "automation",
+    "mysql",
+    "deployment",
+    "bulk",
+    "sites",
+    "web-hosting",
+    "server-management",
+    "devops"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/auroradream04/wp-hosting-automation.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Aurora Dream <berlin001111@gmail.com>",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/auroradream04/wp-hosting-automation/issues"
   },
   "homepage": "https://github.com/auroradream04/wp-hosting-automation#readme",
-  "description": "",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "template.csv",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.0.0",

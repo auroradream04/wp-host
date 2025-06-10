@@ -1,6 +1,6 @@
-# WordPress Hosting Automation
+# WP-Host - WordPress Hosting Automation
 
-[![npm version](https://img.shields.io/npm/v/wp-hosting-automation.svg)](https://www.npmjs.com/package/wp-hosting-automation)
+[![npm version](https://img.shields.io/npm/v/wp-host.svg)](https://www.npmjs.com/package/wp-host)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js CI](https://github.com/auroradream04/wp-hosting-automation/workflows/Node.js%20CI/badge.svg)](https://github.com/auroradream04/wp-hosting-automation/actions)
 
@@ -32,19 +32,19 @@ Automate the deployment of multiple WordPress instances with MySQL databases, pe
 
 ### 1. Install
 ```bash
-npm install -g wp-hosting-automation
+npm install -g wp-host
 ```
 
 ### 2. Create Configuration
 Download the template and add your sites:
 ```bash
-wp-hosting-automation init
+wp-host init
 # Edit the generated template.csv with your sites
 ```
 
 ### 3. Deploy
 ```bash
-wp-hosting-automation deploy -c sites.csv
+wp-host deploy -c sites.csv
 ```
 
 That's it! Your WordPress sites are ready with databases, admin users, and application passwords.
@@ -61,8 +61,8 @@ That's it! Your WordPress sites are ready with databases, admin users, and appli
 
 ### Global Installation (Recommended)
 ```bash
-npm install -g wp-hosting-automation
-wp-hosting-automation --help
+npm install -g wp-host
+wp-host --help
 ```
 
 ### Local Development
@@ -81,9 +81,9 @@ Perfect for non-technical users. Works with Excel, Google Sheets, or any spreads
 
 ```csv
 site_name,directory_path,wordpress_site_title,wordpress_admin_username
-phjilibetfree100.online,/www/wwwroot/wordpress.phjilibetfree100.online,Cherry Blossom Casino,TTBSEO
-jilibet88.site,/www/wwwroot/wordpress.jilibet88.site,Cherry Blossom Casino,TTBSEO
-jilibet88.store,/www/wwwroot/wordpress.jilibet88.store,Cherry Blossom Casino,TTBSEO
+mybusiness.com,/www/wwwroot/wordpress.mybusiness.com,My Business Website,admin
+portfolio.net,/www/wwwroot/wordpress.portfolio.net,Creative Portfolio,webmaster
+techblog.org,/www/wwwroot/wordpress.techblog.org,Tech Blog,blogger
 ```
 
 ### Environment Configuration
@@ -109,34 +109,34 @@ The tool intelligently generates:
 
 ### Basic Deployment
 ```bash
-wp-hosting-automation deploy -c sites.csv
+wp-host deploy -c sites.csv
 ```
 
 ### Advanced Options
 ```bash
 # Interactive mode with prompts
-wp-hosting-automation deploy -c sites.csv
+wp-host deploy -c sites.csv
 
 # Generate application passwords for API access
-wp-hosting-automation deploy -c sites.csv --app-passwords
+wp-host deploy -c sites.csv --app-passwords
 
 # Export all credentials to spreadsheet
-wp-hosting-automation deploy -c sites.csv --export
+wp-host deploy -c sites.csv --export
 
 # Validate configuration without deploying
-wp-hosting-automation validate -c sites.csv
+wp-host validate -c sites.csv
 ```
 
 ### Standalone Commands
 ```bash
 # Only create databases
-wp-hosting-automation create-databases -c sites.csv
+wp-host create-databases -c sites.csv
 
 # Generate application passwords for existing sites
-wp-hosting-automation generate-app-passwords -c sites.csv
+wp-host generate-app-passwords -c sites.csv
 
 # Export deployment information
-wp-hosting-automation export-deployment -c sites.csv --include-app-passwords
+wp-host export-deployment -c sites.csv --include-app-passwords
 ```
 
 ## 📈 Deployment Workflow
@@ -207,19 +207,19 @@ server {
 ### Database Operations
 ```bash
 # Check database status
-wp-hosting-automation check-databases -c sites.csv
+wp-host check-databases -c sites.csv
 
 # Clean up databases (careful!)
-wp-hosting-automation cleanup-databases -c sites.csv
+wp-host cleanup-databases -c sites.csv
 ```
 
 ### WordPress Operations  
 ```bash
 # Check WordPress installations
-wp-hosting-automation check-wordpress -c sites.csv
+wp-host check-wordpress -c sites.csv
 
 # Generate deployment report
-wp-hosting-automation report -c sites.csv
+wp-host report -c sites.csv
 ```
 
 ## 🤝 Contributing
