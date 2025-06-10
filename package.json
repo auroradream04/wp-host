@@ -30,6 +30,7 @@
   "dependencies": {
     "@types/inquirer": "^9.0.8",
     "@types/unzipper": "^0.10.11",
+    "bcryptjs": "^3.0.2",
     "commander": "^14.0.0",
     "fs-extra": "^11.3.0",
     "inquirer": "^12.6.3",

@@ -704,18 +704,27 @@ export class WordPressManager {
    * Create WordPress admin user and set essential options
    */
   private async createWordPressAdmin(connection: any, site: SiteConfig, siteUrl: string): Promise<void> {
-    const crypto = require('crypto');
+    const bcrypt = require('bcryptjs');
     const adminUsername = site.wordpress_admin_username || 'admin';
     const adminPassword = this.config.wordpress.adminPassword;
     const adminEmail = this.config.wordpress.adminEmail;
     const siteTitle = site.wordpress_site_title || 'WordPress Site';
 
-    // Generate WordPress password hash (PHPass compatible)
-    // WordPress uses PHPass hashing - this is a simplified version that WordPress will accept
-    const salt = crypto.randomBytes(6).toString('base64').slice(0, 8);
-    const iterations = 8; // $P$ identifier with iteration count
-    const hash = crypto.createHash('md5').update(adminPassword + salt).digest('hex');
-    const passwordHash = `$P$${String.fromCharCode(46 + iterations)}${salt}${hash}`;
+    // Debug output to verify credentials
+    console.log(`   📧 Using Admin Email: ${adminEmail}`);
+    console.log(`   👤 Using Admin Username: ${adminUsername}`);
+    console.log(`   🔑 Using Admin Password: ${adminPassword.substring(0, 8)}...`);
+    console.log(`   🏷️  Using Site Title: ${siteTitle}`);
+
+    // Generate WordPress password hash (bcrypt format that WordPress accepts)
+    // WordPress supports bcrypt hashes starting with $2y$
+    const saltRounds = 10;
+    let passwordHash = await bcrypt.hash(adminPassword, saltRounds);
+    
+    // WordPress expects $2y$ prefix instead of $2b$ for bcrypt
+    if (passwordHash.startsWith('$2b$')) {
+      passwordHash = passwordHash.replace('$2b$', '$2y$');
+    }
 
     // Insert admin user
     await connection.execute(
