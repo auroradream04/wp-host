@@ -1,205 +1,207 @@
 <context>
 # Overview  
-WordPress Hosting Automation Platform is a comprehensive solution that automates the deployment and management of multiple WordPress instances with dedicated MySQL databases. The platform solves the complex problem of manually setting up, configuring, and managing multiple WordPress sites by providing an automated infrastructure that can spin up new WordPress instances with isolated MySQL databases on demand.
+WordPress Batch Hosting Tool is a simple Node.js terminal application that automates the deployment of multiple WordPress instances with dedicated MySQL databases. The tool reads a configuration file (CSV or JSON) containing directory paths where WordPress sites should be installed, then automatically creates MySQL databases and deploys WordPress instances to those locations.
 
-This platform is designed for web developers, agencies, hosting providers, and businesses that need to manage multiple WordPress sites efficiently. It eliminates the tedious manual setup process, reduces human error, and provides a scalable solution for WordPress hosting at scale.
+This tool is designed for developers and system administrators who need to quickly set up multiple WordPress sites on a server without manual configuration. It eliminates the repetitive process of creating databases, downloading WordPress, and configuring wp-config.php files for each site.
 
-The value proposition includes rapid deployment times (minutes instead of hours), consistent configurations, automated database management, secure credential storage, and centralized management of multiple WordPress instances.
+The value proposition is simplicity and speed: run one command, provide a configuration file, and get multiple fully-configured WordPress sites ready to use.
 
 # Core Features  
-## Database Management System
-- **Automated MySQL Instance Creation**: Programmatically creates isolated MySQL database instances for each WordPress site
-- **Credential Management**: Securely stores and manages database usernames, passwords, and connection details
-- **Database Isolation**: Ensures each WordPress site has its own dedicated database for security and performance
+## Configuration File Processing
+- **CSV/JSON Input**: Reads a user-provided file containing site configurations (directory paths, site names, database names)
+- **Validation**: Ensures all required fields are present and directory paths are valid
+- **Error Handling**: Clear error messages for invalid configurations or missing data
 
-## WordPress Instance Management
-- **Automated WordPress Deployment**: Downloads, configures, and deploys fresh WordPress installations
-- **Database Connection Configuration**: Automatically configures wp-config.php with the appropriate database credentials
-- **Multi-site Support**: Manages multiple WordPress instances simultaneously with unique configurations
+## MySQL Database Management
+- **Automated Database Creation**: Creates individual MySQL databases for each WordPress site
+- **User Management**: Creates dedicated MySQL users with appropriate permissions for each database
+- **Credential Generation**: Generates secure passwords and stores them for wp-config.php configuration
 
-## Security & Access Control
-- **Secure Credential Storage**: Encrypts and stores sensitive database credentials and WordPress admin credentials
-- **Access Management**: Controls who can create, modify, or delete WordPress instances
-- **Environment Isolation**: Ensures each WordPress instance operates in its own secure environment
+## WordPress Deployment
+- **WordPress Download**: Downloads the latest WordPress package from wordpress.org
+- **File Extraction**: Extracts WordPress files to specified directories
+- **Configuration Setup**: Automatically generates wp-config.php with database credentials
+- **File Permissions**: Sets appropriate file permissions for WordPress security
 
-## Management Dashboard
-- **Instance Overview**: Provides a centralized view of all WordPress instances and their status
-- **Database Monitoring**: Tracks database usage, connections, and performance metrics
-- **Deployment History**: Maintains logs of all deployments and configuration changes
+## Batch Processing
+- **Multiple Sites**: Processes all sites from the configuration file in sequence
+- **Progress Reporting**: Shows progress and status for each site deployment
+- **Error Recovery**: Continues processing other sites if one fails, with detailed error reporting
 
 # User Experience  
 ## User Personas
-- **Web Developer**: Needs to quickly spin up development/staging environments for client projects
-- **Agency Owner**: Manages multiple client WordPress sites and needs efficient deployment workflows
-- **Hosting Provider**: Offers managed WordPress hosting services to customers
-- **DevOps Engineer**: Responsible for maintaining and scaling WordPress infrastructure
+- **System Administrator**: Needs to set up multiple WordPress sites for different clients or projects
+- **Developer**: Wants to quickly create development environments for multiple WordPress projects
+- **Hosting Provider**: Needs to batch-deploy WordPress sites for customers
 
 ## Key User Flows
-1. **New WordPress Instance Creation**:
-   - User accesses management dashboard
-   - Fills out instance creation form (site name, admin credentials, domain)
-   - System automatically creates MySQL database and WordPress instance
-   - User receives access credentials and site URL
+1. **Batch Deployment**:
+   - User creates configuration file (CSV/JSON) with site details
+   - User runs the tool: `npm run deploy --config=sites.json`
+   - Tool processes each site: creates database, downloads WordPress, configures files
+   - User receives summary report with access credentials for each site
 
-2. **Instance Management**:
-   - User views dashboard with all active instances
-   - Can start/stop, backup, or delete instances
-   - Access database credentials and WordPress admin panels
-   - Monitor resource usage and performance
-
-3. **Bulk Operations**:
-   - User can create multiple instances from a template
-   - Bulk backup or update operations across multiple sites
-   - Mass configuration changes
+2. **Configuration File Creation**:
+   - User follows template to create sites.json or sites.csv
+   - Specifies: site_name, directory_path, database_name for each site
+   - Tool validates configuration before starting deployment
 
 ## UI/UX Considerations
-- Clean, intuitive web-based dashboard
-- Real-time status updates during deployment
-- Mobile-responsive design for on-the-go management
-- Clear visual indicators for instance health and status
-- One-click access to WordPress admin panels and database tools
+- Clear terminal output with progress indicators
+- Colored output for success/error states
+- Detailed logging for troubleshooting
+- Simple configuration file format that's easy to understand
+- Helpful error messages with suggestions for fixes
 </context>
 <PRD>
 # Technical Architecture  
 ## System Components
-- **Backend API Server**: Node.js/TypeScript application handling all business logic
-- **Database Layer**: 
-  - Primary PostgreSQL database for storing instance metadata, credentials, and configurations
-  - Multiple MySQL instances for WordPress sites
-- **WordPress Management Engine**: Automated WordPress download, configuration, and deployment system
-- **Web Dashboard**: React-based frontend for user interaction
-- **File System Manager**: Handles WordPress file storage and organization
-- **Security Module**: Encryption/decryption of sensitive credentials
+- **Node.js CLI Application**: Single TypeScript application handling all operations
+- **MySQL Client**: Direct connection to MySQL server for database operations
+- **File System Manager**: Handles WordPress file operations and directory management
+- **Configuration Parser**: Reads and validates CSV/JSON input files
+- **WordPress Downloader**: Downloads and extracts WordPress packages
 
 ## Data Models
-- **WordPressInstance**: id, name, domain, status, created_at, mysql_database_id, admin_credentials
-- **MySQLDatabase**: id, database_name, username, password (encrypted), host, port, instance_id
-- **User**: id, username, email, role, permissions
-- **DeploymentLog**: id, instance_id, action, status, timestamp, details
+- **Site Configuration**: site_name, directory_path, database_name, (optional: db_user, admin_email)
+- **Database Credentials**: database_name, username, password, host, port
+- **Deployment Result**: site_name, status, database_info, wordpress_path, errors
 
-## APIs and Integrations
-- **WordPress Core API**: For downloading and managing WordPress installations
-- **MySQL Management API**: For creating databases, users, and managing permissions
-- **File System API**: For managing WordPress files and uploads
-- **Monitoring API**: For health checks and performance metrics
+## File Operations
+- **WordPress Package**: Download from wordpress.org, extract to target directories
+- **wp-config.php Generation**: Template-based configuration file creation
+- **File Permissions**: Set appropriate ownership and permissions for web server access
+- **Directory Structure**: Create necessary directories if they don't exist
 
 ## Infrastructure Requirements
-- **Server Environment**: Linux-based server with Docker support
-- **Database Servers**: PostgreSQL for metadata, MySQL server for WordPress databases
-- **Web Server**: Nginx for serving WordPress sites and API endpoints
-- **Storage**: Sufficient disk space for multiple WordPress installations
-- **Network**: Proper DNS configuration and SSL certificate management
+- **Node.js Environment**: Node.js 18+ with TypeScript support
+- **MySQL Server**: Running MySQL instance with admin privileges for database creation
+- **File System Access**: Write permissions to target directories for WordPress installation
+- **Network Access**: Internet connection for downloading WordPress packages
 
 # Development Roadmap  
-## Phase 1: Core Infrastructure (MVP)
-- Basic Node.js/TypeScript API server setup
-- PostgreSQL database setup with core data models
-- MySQL database creation and management functionality
-- Basic credential encryption/storage system
-- Simple REST API for database operations
-- Command-line interface for testing database operations
+## Phase 1: Core CLI Framework (MVP)
+- Basic Node.js CLI application setup with TypeScript
+- Command-line argument parsing (config file path, options)
+- Configuration file parser for JSON format
+- Basic error handling and logging system
+- MySQL connection testing and validation
 
-## Phase 2: WordPress Automation Engine
-- WordPress download and extraction system
-- Automated wp-config.php generation and configuration
-- Database connection establishment and testing
-- Basic WordPress instance lifecycle management (create/delete)
-- File system organization for multiple WordPress instances
-- Basic logging and error handling
+## Phase 2: MySQL Database Operations
+- Database creation functionality
+- MySQL user creation with proper privileges
+- Password generation for database users
+- Connection testing for created databases
+- Cleanup operations for failed deployments
 
-## Phase 3: Web Dashboard Frontend
-- React-based dashboard application
-- Instance creation and management UI
-- Database credential viewing (with proper security)
-- Real-time status updates and deployment progress
-- Basic user authentication and session management
-- Responsive design for mobile access
+## Phase 3: WordPress Download and Extraction
+- WordPress package download from official source
+- File extraction to specified directories
+- Directory creation and validation
+- Basic file permission setting
+- wp-config.php template and generation
 
-## Phase 4: Advanced Management Features
-- Bulk operations (create multiple instances, bulk updates)
-- WordPress plugin and theme management
-- Automated backup and restore functionality
-- Performance monitoring and resource usage tracking
-- Advanced user roles and permissions system
-- API documentation and external integrations
+## Phase 4: Integration and Batch Processing
+- Combine database and WordPress operations
+- Process multiple sites from configuration file
+- Progress reporting and status updates
+- Error handling and recovery for individual sites
+- Summary reporting with credentials and access information
 
-## Phase 5: Production Readiness & Scaling
-- Docker containerization for easy deployment
-- Load balancing and high availability setup
-- Advanced security features (2FA, audit logs)
-- Automated SSL certificate management
-- Monitoring and alerting system
-- Documentation and deployment guides
+## Phase 5: Enhanced Features and Robustness
+- CSV configuration file support
+- Advanced configuration options (custom WordPress versions, plugins)
+- Backup and rollback capabilities
+- Enhanced logging and debugging options
+- Configuration file validation and templates
 
 # Logical Dependency Chain
 ## Foundation Layer (Must be built first)
-1. **Database Infrastructure**: PostgreSQL setup and core data models
-2. **MySQL Management**: Ability to create and manage MySQL databases programmatically
-3. **Credential Security**: Encryption system for storing sensitive data
-4. **Basic API Framework**: Core Node.js server with essential endpoints
+1. **CLI Framework**: Basic Node.js application with argument parsing
+2. **Configuration Parser**: Read and validate JSON configuration files
+3. **MySQL Connection**: Establish connection to MySQL server
+4. **Logging System**: Basic progress reporting and error handling
 
-## Core Functionality Layer (Build upon foundation)
-5. **WordPress Download System**: Automated WordPress acquisition and extraction
-6. **Configuration Engine**: wp-config.php generation and database connection setup
-7. **Instance Management**: Create, configure, and deploy WordPress instances
-8. **File System Organization**: Proper directory structure and file management
+## Database Layer (Build upon foundation)
+5. **Database Creation**: Create MySQL databases programmatically
+6. **User Management**: Create MySQL users with appropriate permissions
+7. **Credential Management**: Generate and store database passwords
+8. **Connection Testing**: Verify database connectivity
 
-## User Interface Layer (Requires core functionality)
-9. **Basic Web Dashboard**: Simple UI for creating and viewing instances
-10. **Authentication System**: User login and session management
-11. **Real-time Updates**: Live status updates during deployment processes
+## WordPress Layer (Requires database functionality)
+9. **WordPress Download**: Download WordPress packages from official source
+10. **File Extraction**: Extract WordPress to target directories
+11. **wp-config.php Generation**: Create configuration files with database credentials
+12. **File Permissions**: Set appropriate permissions for web server
 
-## Advanced Features Layer (Enhancement of existing functionality)
-12. **Bulk Operations**: Multiple instance management capabilities
-13. **Monitoring System**: Performance tracking and health checks
-14. **Backup/Restore**: Data protection and recovery features
-15. **Advanced Security**: Enhanced authentication and audit capabilities
+## Integration Layer (Combines all functionality)
+13. **Batch Processing**: Process multiple sites from configuration file
+14. **Error Recovery**: Handle individual site failures gracefully
+15. **Reporting**: Generate summary reports with credentials and status
 
 # Risks and Mitigations  
 ## Technical Challenges
-- **Risk**: MySQL instance conflicts and resource management
-- **Mitigation**: Implement proper port management and resource allocation strategies
+- **Risk**: MySQL permission issues preventing database creation
+- **Mitigation**: Validate MySQL admin credentials before starting, provide clear setup instructions
 
-- **Risk**: WordPress configuration complexity and version compatibility
-- **Mitigation**: Use standardized WordPress configurations and maintain compatibility matrices
+- **Risk**: File permission conflicts in target directories
+- **Mitigation**: Check directory permissions before deployment, provide sudo guidance if needed
 
-- **Risk**: Security vulnerabilities in credential storage
-- **Mitigation**: Implement industry-standard encryption and follow security best practices
+- **Risk**: WordPress download failures due to network issues
+- **Mitigation**: Implement retry logic and local caching of WordPress packages
 
-## MVP Definition and Scope
-- **Risk**: Feature creep leading to delayed MVP delivery
-- **Mitigation**: Focus strictly on core functionality: create MySQL database + deploy WordPress + connect them together
+## Scope and Complexity
+- **Risk**: Over-complicating a simple batch tool
+- **Mitigation**: Focus on core functionality: read config → create database → deploy WordPress → connect them
 
-- **Risk**: Over-engineering the initial solution
-- **Mitigation**: Start with simple file-based configurations before building complex management systems
+- **Risk**: Configuration file format confusion
+- **Mitigation**: Provide clear templates and examples, start with simple JSON format
 
 ## Resource Constraints
-- **Risk**: Server resource limitations affecting performance
-- **Mitigation**: Implement resource monitoring and automatic scaling capabilities
+- **Risk**: Large number of sites overwhelming MySQL server
+- **Mitigation**: Implement rate limiting and batch size controls
 
-- **Risk**: Development complexity requiring specialized knowledge
-- **Mitigation**: Break down complex tasks into smaller, manageable components with clear documentation
+- **Risk**: Disk space issues with multiple WordPress installations
+- **Mitigation**: Check available disk space before deployment, provide warnings
 
 # Appendix  
 ## Technical Specifications
 - **Node.js Version**: 18+ with TypeScript support
-- **Database**: PostgreSQL 14+ for metadata, MySQL 8+ for WordPress instances
-- **Frontend**: React 18+ with TypeScript
-- **Authentication**: JWT-based session management
-- **Encryption**: AES-256 for credential storage
-- **File Storage**: Local file system with future cloud storage support
+- **MySQL Version**: 5.7+ or 8.0+
+- **File System**: Linux/macOS with standard permissions
+- **Dependencies**: mysql2, fs-extra, node-fetch, commander.js
+- **Configuration**: JSON/CSV files with simple schema
 
-## Research Findings
-- WordPress requires specific PHP extensions and configurations
-- MySQL user management requires careful privilege assignment
-- File permissions are critical for WordPress security
-- Automated deployment reduces setup time from hours to minutes
-- Proper database isolation prevents cross-site data leaks
+## Configuration File Examples
+### JSON Format:
+```json
+{
+  "sites": [
+    {
+      "site_name": "client1_site",
+      "directory_path": "/var/www/client1",
+      "database_name": "client1_wp_db"
+    },
+    {
+      "site_name": "client2_site", 
+      "directory_path": "/var/www/client2",
+      "database_name": "client2_wp_db"
+    }
+  ]
+}
+```
+
+### CSV Format:
+```csv
+site_name,directory_path,database_name
+client1_site,/var/www/client1,client1_wp_db
+client2_site,/var/www/client2,client2_wp_db
+```
 
 ## Success Metrics
-- Deployment time: < 5 minutes per WordPress instance
-- System uptime: 99.9% availability
-- User satisfaction: Intuitive interface requiring minimal training
-- Scalability: Support for 100+ concurrent WordPress instances
-- Security: Zero credential exposure incidents
+- **Deployment Speed**: < 2 minutes per WordPress site
+- **Success Rate**: 95%+ successful deployments from valid configuration
+- **Usability**: Single command execution with clear progress output
+- **Reliability**: Proper error handling and recovery for common issues
+- **Simplicity**: Minimal configuration required, works out of the box
 </PRD> 
