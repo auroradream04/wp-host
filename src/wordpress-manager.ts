@@ -21,6 +21,10 @@ export class WordPressManager {
   async installAllSites(autoCleanDirectories: boolean = false): Promise<DeploymentResult[]> {
     console.log(`\n🌐 Starting WordPress installation for ${this.config.sites.length} site(s)...`);
     
+    // Install WP-CLI globally once at the beginning
+    console.log(`\n🔧 Setting up WP-CLI globally for all sites...`);
+    await this.ensureWPCLIInstalled();
+    
     const results: DeploymentResult[] = [];
 
     for (let i = 0; i < this.config.sites.length; i++) {
@@ -1297,32 +1301,14 @@ define('WP_SITEURL', '${siteUrl}');
       console.log(`   🔑 Using Admin Password: ${adminPassword.substring(0, 8)}...`);
       console.log(`   🏷️  Using Site Title: ${siteTitle}`);
       
-      // Determine which WP-CLI command to use
-      let wpCommand = 'wp';
+      // WP-CLI should already be installed globally, just verify
+      const wpCommand = 'wp';
       
-      // Check if WP-CLI is available globally
       try {
         const versionResult = await execAsync('wp --version');
-        console.log(`   ✅ WP-CLI is available globally: ${versionResult.stdout.trim()}`);
-        wpCommand = 'wp';
+        console.log(`   ✅ Using WP-CLI: ${versionResult.stdout.trim()}`);
       } catch (error) {
-        // Check if WP-CLI is available locally
-        try {
-          const localVersionResult = await execAsync('./wp --version');
-          console.log(`   ✅ WP-CLI is available locally: ${localVersionResult.stdout.trim()}`);
-          wpCommand = './wp';
-        } catch (localError) {
-          console.log(`   📥 WP-CLI not found, installing...`);
-          await this.installWPCLI();
-          
-          // After installation, check which command to use
-          try {
-            await execAsync('wp --version');
-            wpCommand = 'wp';
-          } catch (globalError) {
-            wpCommand = './wp';
-          }
-        }
+        throw new Error('WP-CLI not available. Global installation should have been completed earlier.');
       }
       
       // Navigate to site directory and run WordPress installation
@@ -1367,53 +1353,54 @@ define('WP_SITEURL', '${siteUrl}');
     }
   }
 
-  private async installWPCLI(): Promise<void> {
+  private async ensureWPCLIInstalled(): Promise<string> {
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
 
+    // Check if WP-CLI is already available globally
     try {
-      console.log(`   📥 Installing WP-CLI...`);
-      
+      const { stdout } = await execAsync('wp --version');
+      console.log(`✅ WP-CLI is already installed globally: ${stdout.trim()}`);
+      return 'wp';
+    } catch (error) {
+      console.log(`📥 WP-CLI not found globally, installing...`);
+    }
+
+    try {
       // Download WP-CLI using the official stable release URL
-      console.log(`   📥 Downloading WP-CLI from official source...`);
+      console.log(`📥 Downloading WP-CLI from official source...`);
       await execAsync('curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar');
       
       // Verify the download worked
-      console.log(`   🔍 Verifying WP-CLI download...`);
-      const { stdout: phpOutput } = await execAsync('php wp-cli.phar --info');
-      console.log(`   ✅ WP-CLI downloaded successfully`);
+      console.log(`🔍 Verifying WP-CLI download...`);
+      await execAsync('php wp-cli.phar --info');
+      console.log(`✅ WP-CLI downloaded successfully`);
       
       // Make it executable
       await execAsync('chmod +x wp-cli.phar');
       
-      // Try to install globally, fallback to local
-      try {
-        await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
-        console.log(`   ✅ WP-CLI installed globally to /usr/local/bin/wp`);
-        
-        // Verify global installation
-        const { stdout } = await execAsync('wp --version');
-        console.log(`   ✅ WP-CLI version: ${stdout.trim()}`);
-        
-      } catch (error) {
-        console.log(`   ⚠️  Could not install globally, using local installation...`);
-        
-        // Keep it local and create a symlink or use full path
-        await execAsync('mv wp-cli.phar ./wp');
-        console.log(`   ✅ WP-CLI installed locally as ./wp`);
-        
-        // Verify local installation
-        const { stdout } = await execAsync('./wp --version');
-        console.log(`   ✅ WP-CLI version: ${stdout.trim()}`);
-      }
+      // Install globally
+      console.log(`🔧 Installing WP-CLI globally...`);
+      await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
+      
+      // Verify global installation
+      const { stdout } = await execAsync('wp --version');
+      console.log(`✅ WP-CLI installed globally: ${stdout.trim()}`);
+      
+      return 'wp';
       
     } catch (error: any) {
-      console.error(`   ❌ Failed to install WP-CLI: ${error.message}`);
+      console.error(`❌ Failed to install WP-CLI globally: ${error.message}`);
       
       // Try alternative installation method
-      console.log(`   🔄 Trying alternative installation method...`);
+      console.log(`🔄 Trying alternative installation with wget...`);
       try {
+        // Clean up any partial files
+        try {
+          await execAsync('rm -f wp-cli.phar');
+        } catch {} // Ignore errors
+        
         // Try downloading using wget as fallback
         await execAsync('wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar');
         await execAsync('chmod +x wp-cli.phar');
@@ -1421,12 +1408,16 @@ define('WP_SITEURL', '${siteUrl}');
         // Test that it works
         await execAsync('php wp-cli.phar --info');
         
-        // Install locally
-        await execAsync('mv wp-cli.phar ./wp');
-        console.log(`   ✅ WP-CLI installed locally using wget`);
+        // Try global installation again
+        await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
+        
+        const { stdout } = await execAsync('wp --version');
+        console.log(`✅ WP-CLI installed globally via wget: ${stdout.trim()}`);
+        
+        return 'wp';
         
       } catch (wgetError: any) {
-        console.error(`   ❌ Alternative installation also failed: ${wgetError.message}`);
+        console.error(`❌ All WP-CLI installation methods failed: ${wgetError.message}`);
         throw new Error(`Could not install WP-CLI: ${error.message}`);
       }
     }
