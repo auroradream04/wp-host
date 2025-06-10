@@ -102,6 +102,46 @@ export class WordPressManager {
   }
 
   /**
+   * Safely clean directory, handling special files like .user.ini
+   */
+  private async safeCleanDirectory(targetDir: string): Promise<void> {
+    try {
+      const files = await fs.readdir(targetDir);
+      
+      for (const file of files) {
+        const filePath = path.join(targetDir, file);
+        
+        try {
+          const stats = await fs.lstat(filePath);
+          
+          if (stats.isDirectory()) {
+            await fs.remove(filePath);
+          } else {
+            // Handle special files that might have restricted permissions
+            try {
+              await fs.remove(filePath);
+            } catch (fileError) {
+              // If we can't delete a file (like .user.ini), try to change permissions first
+              try {
+                await fs.chmod(filePath, 0o666);
+                await fs.remove(filePath);
+              } catch (permError) {
+                console.log(`   ⚠️  Could not remove ${file} (system file, skipping)`);
+                // Some files like .user.ini might be protected by the system
+                // We'll skip them and let WordPress work around them
+              }
+            }
+          }
+        } catch (statError) {
+          console.log(`   ⚠️  Could not access ${file}, skipping`);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to clean directory: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
    * Prepare directory for WordPress installation
    */
   async prepareDirectory(targetDir: string, allowCleanup: boolean = false): Promise<void> {
@@ -136,7 +176,7 @@ export class WordPressManager {
             }
             
             console.log(`   🧹 Removing existing WordPress installation...`);
-            await fs.emptyDir(targetDir);
+            await this.safeCleanDirectory(targetDir);
             console.log(`   ✅ Directory cleaned successfully`);
             return;
           }
@@ -159,9 +199,9 @@ export class WordPressManager {
             throw new Error('Target directory is not empty');
           }
           
-          console.log(`   🧹 Cleaning directory...`);
-          await fs.emptyDir(targetDir);
-          console.log(`   ✅ Directory cleaned successfully`);
+                      console.log(`   🧹 Cleaning directory...`);
+            await this.safeCleanDirectory(targetDir);
+            console.log(`   ✅ Directory cleaned successfully`);
         } else {
           throw new Error('Target directory is not empty');
         }
