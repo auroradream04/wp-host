@@ -215,11 +215,11 @@ export class PermissionsManager {
   async setSpecialPermissions(targetDir: string): Promise<void> {
     console.log(`   🔐 Setting special permissions...`);
     
-    // wp-config.php should be 600 (owner only) for security
+    // wp-config.php should be 644 (readable by web server) - more compatible than 600
     const wpConfigPath = path.join(targetDir, 'wp-config.php');
     if (await fs.pathExists(wpConfigPath)) {
-      await fs.chmod(wpConfigPath, 0o600);
-      console.log(`   🔒 wp-config.php: 600 (secure)`);
+      await fs.chmod(wpConfigPath, 0o644);
+      console.log(`   🔒 wp-config.php: 644 (web server readable)`);
     }
 
     // .htaccess should be 644 if it exists
@@ -321,7 +321,7 @@ export class PermissionsManager {
       
       if (await fs.pathExists(wpConfigPath)) {
         const wpConfigStat = await fs.stat(wpConfigPath);
-        wpConfigOk = this.checkPermissions(wpConfigStat.mode, 0o600);
+        wpConfigOk = this.checkPermissions(wpConfigStat.mode, 0o644);
       }
 
       // Check wp-content permissions
@@ -411,8 +411,11 @@ export class PermissionsManager {
       `# Set file permissions (644)`,
       `find "${sitePath}" -type f -exec chmod 644 {} \\;`,
       ``,
-      `# Secure wp-config.php (600)`,
-      `chmod 600 "${sitePath}/wp-config.php"`,
+      `# Set wp-config.php permissions (644 - web server readable)`,
+      `chmod 644 "${sitePath}/wp-config.php"`,
+      ``,
+      `# Set web server ownership (if needed)`,
+      `# sudo chown -R www-data:www-data "${sitePath}"`,
       ``,
       `# Make wp-content writable (755)`,
       `chmod 755 "${sitePath}/wp-content"`,

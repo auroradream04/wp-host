@@ -83,7 +83,10 @@ export class WordPressManager {
       const siteUrl = this.generateSiteUrl(targetDir);
       await this.createWordPressConfig(site, targetDir, siteUrl);
 
-      // Step 7: Complete WordPress installation (setup wizard)
+      // Step 7: Set proper file permissions
+      await this.setWordPressPermissions(targetDir);
+
+      // Step 8: Complete WordPress installation (setup wizard)
       await this.completeWordPressInstallation(site, siteUrl);
 
       return {
@@ -665,6 +668,120 @@ define('NONCE_SALT',       'put your unique phrase here');
     } catch (error) {
       console.log(`   ⚠️  Could not create wp-config.php: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
+    }
+  }
+
+  /**
+   * Set proper WordPress file permissions
+   */
+  private async setWordPressPermissions(targetDir: string): Promise<void> {
+    console.log(`   🔒 Setting WordPress file permissions...`);
+
+    try {
+      // Set directory permissions recursively
+      await this.setDirectoryPermissions(targetDir);
+      
+      // Set file permissions recursively  
+      await this.setFilePermissions(targetDir);
+      
+      // Set special permissions for key files
+      await this.setSpecialFilePermissions(targetDir);
+      
+      console.log(`   ✅ WordPress permissions set successfully`);
+
+    } catch (error) {
+      console.log(`   ⚠️  Could not set permissions: ${error instanceof Error ? error.message : String(error)}`);
+      // Don't throw error - permissions can be set manually
+    }
+  }
+
+  /**
+   * Set directory permissions to 755 recursively
+   */
+  private async setDirectoryPermissions(targetDir: string): Promise<void> {
+    const setDirPermissions = async (dirPath: string): Promise<void> => {
+      if (!await fs.pathExists(dirPath)) return;
+
+      // Set current directory to 755
+      await fs.chmod(dirPath, 0o755);
+
+      // Process subdirectories
+      const items = await fs.readdir(dirPath);
+      for (const item of items) {
+        const itemPath = path.join(dirPath, item);
+        const stat = await fs.stat(itemPath);
+        
+        if (stat.isDirectory()) {
+          await setDirPermissions(itemPath);
+        }
+      }
+    };
+
+    await setDirPermissions(targetDir);
+  }
+
+  /**
+   * Set file permissions to 644 recursively
+   */
+  private async setFilePermissions(targetDir: string): Promise<void> {
+    const setFilePermissions = async (dirPath: string): Promise<void> => {
+      if (!await fs.pathExists(dirPath)) return;
+
+      const items = await fs.readdir(dirPath);
+      for (const item of items) {
+        const itemPath = path.join(dirPath, item);
+        
+        // Skip system files
+        if (item.startsWith('.') && ['user.ini', 'DS_Store'].some(sys => item.includes(sys))) {
+          continue;
+        }
+        
+        try {
+          const stat = await fs.stat(itemPath);
+          
+          if (stat.isFile()) {
+            await fs.chmod(itemPath, 0o644);
+          } else if (stat.isDirectory()) {
+            await setFilePermissions(itemPath);
+          }
+        } catch (error) {
+          // Skip files that can't be modified (like system files)
+          continue;
+        }
+      }
+    };
+
+    await setFilePermissions(targetDir);
+  }
+
+  /**
+   * Set special permissions for important WordPress files
+   */
+  private async setSpecialFilePermissions(targetDir: string): Promise<void> {
+    // wp-config.php should be readable by web server
+    const wpConfigPath = path.join(targetDir, 'wp-config.php');
+    if (await fs.pathExists(wpConfigPath)) {
+      await fs.chmod(wpConfigPath, 0o644);
+    }
+
+    // .htaccess should be readable by web server
+    const htaccessPath = path.join(targetDir, '.htaccess');
+    if (await fs.pathExists(htaccessPath)) {
+      await fs.chmod(htaccessPath, 0o644);
+    }
+
+    // Ensure wp-content and uploads are writable
+    const wpContentPath = path.join(targetDir, 'wp-content');
+    if (await fs.pathExists(wpContentPath)) {
+      await fs.chmod(wpContentPath, 0o755);
+    }
+
+    const uploadsPath = path.join(targetDir, 'wp-content', 'uploads');
+    if (await fs.pathExists(uploadsPath)) {
+      await fs.chmod(uploadsPath, 0o755);
+    } else {
+      await fs.ensureDir(uploadsPath);
+      await fs.chmod(uploadsPath, 0o755);
     }
   }
 } 

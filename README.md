@@ -303,20 +303,42 @@ mysql -u root -p
 SHOW DATABASES;
 ```
 
-#### 3. 403 Forbidden Error
-**Cause**: File permissions or directory configuration
+#### 3. Permission Denied Error (wp-config.php)
+**Cause**: WordPress files don't have proper permissions for web server access
+
+**Error**: `Failed to open stream: Permission denied in wp-load.php`
 
 **Solution**:
 ```bash
-# Set correct ownership
+# Fix WordPress permissions automatically using the tool
+npm start deploy fix-permissions -c sites.csv
+
+# OR manually fix permissions:
+# Set directory permissions
+sudo find /var/www/html/your-site/ -type d -exec chmod 755 {} \;
+
+# Set file permissions  
+sudo find /var/www/html/your-site/ -type f -exec chmod 644 {} \;
+
+# Ensure wp-config.php is readable by web server
+sudo chmod 644 /var/www/html/your-site/wp-config.php
+
+# Set correct ownership (Ubuntu/Debian)
 sudo chown -R www-data:www-data /var/www/html/your-site/
 
-# Set correct permissions
-sudo find /var/www/html/your-site/ -type d -exec chmod 755 {} \;
-sudo find /var/www/html/your-site/ -type f -exec chmod 644 {} \;
+# Set correct ownership (CentOS/RHEL)
+sudo chown -R apache:apache /var/www/html/your-site/
 ```
 
-#### 4. WordPress Shows Localhost URLs
+#### 4. 403 Forbidden Error
+**Cause**: Directory access restrictions or missing index files
+
+**Solution**:
+- Check that your web server virtual host is properly configured
+- Ensure DirectoryIndex includes index.php
+- Verify the document root path is correct
+
+#### 5. WordPress Shows Localhost URLs
 **Cause**: Incorrect URL configuration
 
 **Solution**:
