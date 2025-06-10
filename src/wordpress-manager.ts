@@ -789,7 +789,7 @@ export class WordPressManager {
       ['html_type', 'text/html'],
       ['use_trackback', '0'],
       ['default_role', 'subscriber'],
-      ['db_version', '57155'],
+      ['db_version', '58975'],
       ['uploads_use_yearmonth_folders', '1'],
       ['upload_path', ''],
       ['blog_public', '1'],
@@ -845,7 +845,7 @@ export class WordPressManager {
       // Critical installation completion markers
       ['fresh_site', '1'],
       ['WPLANG', ''],
-      ['initial_db_version', '57155'],
+      ['initial_db_version', '58975'],
       ['can_compress_scripts', '1'],
       ['db_upgraded', ''],
       // WordPress user roles - complete definition from official schema
