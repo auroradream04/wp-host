@@ -4,6 +4,7 @@ export interface DeploymentOptions {
   generateAppPasswords: boolean;
   generateExport: boolean;
   exportPath?: string;
+  cleanAllDirectories?: boolean;
 }
 
 export class PromptService {
@@ -18,6 +19,12 @@ export class PromptService {
     console.log('You can also optionally generate application passwords and export results.\n');
 
     const answers = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'cleanAllDirectories',
+        message: '🧹 Automatically clean non-empty directories during installation?',
+        default: false
+      },
       {
         type: 'confirm',
         name: 'generateAppPasswords',
@@ -46,6 +53,7 @@ export class PromptService {
     ]);
 
     return {
+      cleanAllDirectories: answers.cleanAllDirectories,
       generateAppPasswords: answers.generateAppPasswords,
       generateExport: answers.generateExport,
       exportPath: answers.exportPath?.trim() || undefined

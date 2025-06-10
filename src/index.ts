@@ -58,6 +58,7 @@ program
       let deploymentOptions;
       if (options.skipPrompts) {
         deploymentOptions = {
+          cleanAllDirectories: false, // Default to false for non-interactive mode
           generateAppPasswords: !!options.appPasswords,
           generateExport: !!options.export,
           exportPath: typeof options.export === 'string' ? options.export : undefined
@@ -98,7 +99,7 @@ program
       console.log('\n🌐 Step 2: Installing and configuring WordPress...');
       const wordpressManager = new WordPressManager(config);
       
-      const wpResults = await wordpressManager.installAllSites();
+      const wpResults = await wordpressManager.installAllSites(deploymentOptions.cleanAllDirectories);
       const wpSummary = wordpressManager.getSummary(wpResults);
       
       if (wpSummary.failed > 0) {

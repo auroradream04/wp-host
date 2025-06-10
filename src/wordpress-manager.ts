@@ -18,7 +18,7 @@ export class WordPressManager {
   /**
    * Download and install WordPress for all sites
    */
-  async installAllSites(): Promise<DeploymentResult[]> {
+  async installAllSites(autoCleanDirectories: boolean = false): Promise<DeploymentResult[]> {
     console.log(`\n🌐 Starting WordPress installation for ${this.config.sites.length} site(s)...`);
     
     const results: DeploymentResult[] = [];
@@ -28,7 +28,7 @@ export class WordPressManager {
       console.log(`\n📦 [${i + 1}/${this.config.sites.length}] Installing WordPress: ${site.site_name}`);
       
       try {
-        const result = await this.installWordPressSite(site);
+        const result = await this.installWordPressSite(site, autoCleanDirectories);
         results.push(result);
         
         if (result.status === 'success') {
@@ -55,14 +55,14 @@ export class WordPressManager {
   /**
    * Install WordPress for a single site
    */
-  async installWordPressSite(site: SiteConfig): Promise<DeploymentResult> {
+  async installWordPressSite(site: SiteConfig, autoCleanDirectories: boolean = false): Promise<DeploymentResult> {
     const targetDir = path.resolve(site.directory_path);
     
     console.log(`   Target Directory: ${targetDir}`);
 
     try {
       // Step 1: Prepare directory
-      await this.prepareDirectory(targetDir, true);
+              await this.prepareDirectory(targetDir, autoCleanDirectories ? 'auto' : true);
 
       // Step 2: Download WordPress
       const tempZipPath = await this.downloadWordPress(targetDir);
@@ -144,7 +144,7 @@ export class WordPressManager {
   /**
    * Prepare directory for WordPress installation
    */
-  async prepareDirectory(targetDir: string, allowCleanup: boolean = false): Promise<void> {
+  async prepareDirectory(targetDir: string, allowCleanup: boolean | 'auto' = false): Promise<void> {
     console.log(`   📁 Preparing directory...`);
 
     // Check if directory exists and is writable
@@ -163,7 +163,8 @@ export class WordPressManager {
         if (wpConfigExists || wpIncludesExists) {
           console.log(`   ⚠️  WordPress already exists in ${targetDir}`);
           
-          if (allowCleanup) {
+                  if (allowCleanup) {
+          if (allowCleanup !== 'auto') {
             const { confirmOverwrite } = await inquirer.prompt([{
               type: 'confirm',
               name: 'confirmOverwrite',
@@ -174,6 +175,7 @@ export class WordPressManager {
             if (!confirmOverwrite) {
               throw new Error('WordPress already installed in target directory');
             }
+          }
             
             console.log(`   🧹 Removing existing WordPress installation...`);
             await this.safeCleanDirectory(targetDir);
@@ -188,15 +190,17 @@ export class WordPressManager {
         console.log(`   📁 Files found: ${visibleFiles.slice(0, 5).join(', ')}${visibleFiles.length > 5 ? '...' : ''}`);
         
         if (allowCleanup) {
-          const { confirmCleanup } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'confirmCleanup',
-            message: `⚠️  Directory ${targetDir} is not empty. Remove all files and continue?`,
-            default: false
-          }]);
-          
-          if (!confirmCleanup) {
-            throw new Error('Target directory is not empty');
+          if (allowCleanup !== 'auto') {
+            const { confirmCleanup } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'confirmCleanup',
+              message: `⚠️  Directory ${targetDir} is not empty. Remove all files and continue?`,
+              default: false
+            }]);
+            
+            if (!confirmCleanup) {
+              throw new Error('Target directory is not empty');
+            }
           }
           
                       console.log(`   🧹 Cleaning directory...`);

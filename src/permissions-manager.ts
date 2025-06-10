@@ -151,6 +151,20 @@ export class PermissionsManager {
   }
 
   /**
+   * Check if a file is a system file that shouldn't be modified
+   */
+  private isSystemFile(filename: string): boolean {
+    const protectedSystemFiles = [
+      '.user.ini',    // PHP configuration file used by hosting panels
+      'error_log',    // Server error logs
+      '.DS_Store',    // macOS system files
+      'Thumbs.db'     // Windows system files
+    ];
+    
+    return protectedSystemFiles.includes(filename);
+  }
+
+  /**
    * Set file permissions to 644 (owner: rw, group: r, others: r)
    */
   async setFilePermissions(targetDir: string): Promise<void> {
@@ -172,13 +186,25 @@ export class PermissionsManager {
     
     for (const item of items) {
       const itemPath = path.join(dirPath, item);
-      const stat = await fs.stat(itemPath);
       
-      if (stat.isDirectory()) {
-        await this.setFilePermissionsRecursive(itemPath);
-      } else if (stat.isFile()) {
-        // Set 644 for most files
-        await fs.chmod(itemPath, 0o644);
+      // Skip system files that can't be modified
+      if (this.isSystemFile(item)) {
+        console.log(`   ⚠️  Skipping system file: ${item}`);
+        continue;
+      }
+      
+      try {
+        const stat = await fs.stat(itemPath);
+        
+        if (stat.isDirectory()) {
+          await this.setFilePermissionsRecursive(itemPath);
+        } else if (stat.isFile()) {
+          // Set 644 for most files
+          await fs.chmod(itemPath, 0o644);
+        }
+      } catch (error) {
+        // Skip files that can't be accessed or modified
+        console.log(`   ⚠️  Could not set permissions for ${item}: ${error instanceof Error ? error.message : 'Permission denied'}`);
       }
     }
   }
