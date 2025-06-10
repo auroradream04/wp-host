@@ -267,7 +267,7 @@ export class DatabaseManager {
         // Drop user
         const userExists = await this.mysqlManager.userExists(username, 'localhost');
         if (userExists) {
-          await this.mysqlManager.executeQuery(`DROP USER ?@?`, [username, 'localhost']);
+          await this.mysqlManager.executeQuery(`DROP USER \`${username}\`@\`localhost\``);
           console.log(`   ✅ User ${username}@localhost dropped`);
         } else {
           console.log(`   ℹ️  User ${username}@localhost doesn't exist`);
