@@ -434,6 +434,15 @@ export class WordPressManager {
       console.log(`   🔍 Verifying WordPress installation detection...`);
       
       try {
+        // Set the critical WordPress installation completion marker
+        // WordPress checks for the 'db_version' option to determine if installation is complete
+        await connection.execute(
+          `INSERT INTO wp_options (option_name, option_value, autoload) VALUES 
+           ('db_version', '57155', 'yes'),
+           ('initial_db_version', '57155', 'yes')
+           ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)`
+        );
+        
         // Check if siteurl option was set correctly
         const [siteurlCheck] = await connection.execute(
           `SELECT option_value FROM wp_options WHERE option_name = 'siteurl'`
@@ -457,6 +466,7 @@ export class WordPressManager {
           `SELECT 
             (SELECT COUNT(*) FROM wp_options WHERE option_name = 'siteurl' AND option_value != '') as has_siteurl,
             (SELECT COUNT(*) FROM wp_options WHERE option_name = 'home' AND option_value != '') as has_home,
+            (SELECT COUNT(*) FROM wp_options WHERE option_name = 'db_version') as has_db_version,
             (SELECT COUNT(*) FROM wp_users) as user_count,
             (SELECT COUNT(*) FROM wp_posts WHERE post_type = 'post') as post_count`
         );
@@ -465,10 +475,11 @@ export class WordPressManager {
         console.log(`   📊 Installation verification:`);
         console.log(`       - siteurl set: ${check.has_siteurl > 0 ? '✅' : '❌'}`);
         console.log(`       - home set: ${check.has_home > 0 ? '✅' : '❌'}`);
+        console.log(`       - db_version set: ${check.has_db_version > 0 ? '✅' : '❌'}`);
         console.log(`       - users created: ${check.user_count}`);
         console.log(`       - posts created: ${check.post_count}`);
         
-        if (check.has_siteurl > 0 && check.has_home > 0 && check.user_count > 0) {
+        if (check.has_siteurl > 0 && check.has_home > 0 && check.has_db_version > 0 && check.user_count > 0) {
           console.log(`   ✅ WordPress installation should be recognized as complete`);
         } else {
           console.log(`   ⚠️  WordPress may still show installation wizard`);
