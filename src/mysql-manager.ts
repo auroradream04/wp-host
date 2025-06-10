@@ -207,8 +207,6 @@ export class MySQLManager {
     let testConnection: mysql.Connection | null = null;
     
     try {
-      console.log(`🧪 Testing database connection for ${username}@${host} to ${databaseName}...`);
-      
       testConnection = await mysql.createConnection({
         host: this.config.host,
         port: this.config.port,
@@ -218,12 +216,9 @@ export class MySQLManager {
       });
 
       await testConnection.ping();
-      console.log(`✅ Database connection test successful for ${username}@${host}`);
       return true;
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`❌ Database connection test failed: ${errorMessage}`);
       return false;
     } finally {
       if (testConnection) {
@@ -297,29 +292,18 @@ export class MySQLManager {
     }
 
     try {
-      console.log(`🗑️  Performing clean slate reset for database: ${databaseName} and user: ${username}@${host}`);
-
       // Drop database if it exists
       if (await this.databaseExists(databaseName)) {
-        console.log(`📊 Dropping existing database: ${databaseName}`);
         await this.connection.execute(`DROP DATABASE \`${databaseName}\``);
-        console.log(`✅ Database ${databaseName} dropped successfully`);
-      } else {
-        console.log(`ℹ️  Database ${databaseName} doesn't exist, nothing to drop`);
       }
 
       // Drop user if it exists
       if (await this.userExists(username, host)) {
-        console.log(`👤 Dropping existing user: ${username}@${host}`);
         await this.connection.execute(`DROP USER \`${username}\`@\`${host}\``);
-        console.log(`✅ User ${username}@${host} dropped successfully`);
-      } else {
-        console.log(`ℹ️  User ${username}@${host} doesn't exist, nothing to drop`);
       }
 
       // Flush privileges to ensure changes take effect
       await this.connection.execute('FLUSH PRIVILEGES');
-      console.log(`🧹 Clean slate completed - database and user removed`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -336,31 +320,23 @@ export class MySQLManager {
     }
 
     try {
-      console.log(`🚀 Creating fresh database and user: ${databaseName} with ${username}@${host}`);
-
       // First, ensure clean slate by dropping existing database and user
       await this.dropDatabaseAndUser(databaseName, username, host);
 
       // Create database
-      console.log(`📊 Creating fresh database: ${databaseName}`);
       await this.connection.execute(`CREATE DATABASE \`${databaseName}\``);
-      console.log(`✅ Database ${databaseName} created successfully`);
 
       // Create user
-      console.log(`👤 Creating fresh user: ${username}@${host}`);
       const createUserSQL = `CREATE USER \`${username}\`@\`${host}\` IDENTIFIED BY '${password.replace(/'/g, "''")}'`;
       await this.connection.execute(createUserSQL);
-      console.log(`✅ User ${username}@${host} created successfully`);
 
       // Grant all privileges
-      console.log(`🔑 Granting all privileges on ${databaseName} to ${username}@${host}`);
       await this.connection.execute(
         `GRANT ALL PRIVILEGES ON \`${databaseName}\`.* TO \`${username}\`@\`${host}\``
       );
 
       // Flush privileges
       await this.connection.execute('FLUSH PRIVILEGES');
-      console.log(`✅ Fresh database and user setup completed successfully`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

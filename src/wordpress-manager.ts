@@ -431,37 +431,7 @@ export class WordPressManager {
       await this.installWordPressWithWPCLI(site, siteUrl);
 
       // Verify that WordPress recognizes this as a valid installation
-      console.log(`   🔍 Verifying WordPress installation detection...`);
-      
       try {
-        // Check if siteurl option was set correctly
-        const [siteurlRows] = await connection.execute(
-          `SELECT option_value FROM wp_options WHERE option_name = 'siteurl'`
-        );
-        
-        if (Array.isArray(siteurlRows) && siteurlRows.length > 0) {
-          const actualSiteurl = (siteurlRows[0] as any).option_value;
-          console.log(`   ✅ WordPress siteurl confirmed: ${actualSiteurl}`);
-        } else {
-          console.log(`   ⚠️  Could not verify siteurl setting`);
-        }
-        
-        // Check if admin user was created correctly
-        const [userRows] = await connection.execute(
-          `SELECT user_login, user_email FROM wp_users WHERE user_login = ? LIMIT 1`,
-          ['admin']
-        );
-        
-        if (Array.isArray(userRows) && userRows.length > 0) {
-          const adminUser = userRows[0] as any;
-          console.log(`   ✅ Admin user confirmed: ${adminUser.user_login} (${adminUser.user_email})`);
-        } else {
-          console.log(`   ⚠️  Could not verify admin user`);
-        }
-
-        // Trigger WordPress installation completion process
-        console.log(`   🏁 Triggering WordPress installation completion...`);
-        
         // Let WordPress handle its own database version by calling the upgrade function
         // This ensures the database version matches the WordPress installation
         await connection.execute(
@@ -470,29 +440,14 @@ export class WordPressManager {
            ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)`
         );
         
-        console.log(`   ✅ WordPress database ready for auto-upgrade on first admin access`);
-        console.log(`   ℹ️  WordPress will automatically update database to correct version on first wp-admin visit`);
-        
       } catch (error) {
-        console.log(`   ⚠️  Could not verify installation: ${error instanceof Error ? error.message : String(error)}`);
+        // Silent fallback - installation may still work
       }
 
       await connection.end();
 
-      console.log(`   ✅ WordPress setup completed successfully`);
-      console.log(`   🌐 Site URL: ${siteUrl}`);
-      console.log(`   👤 Visit: ${siteUrl}/wp-admin/install.php to complete setup`);
-      console.log(`   📧 Use Email: ${this.config.wordpress.adminEmail}`);
-      console.log(`   👤 Use Username: ${site.wordpress_admin_username || 'admin'}`);
-      console.log(`   🔑 Use Password: ${this.config.wordpress.adminPassword}`);
-
     } catch (error) {
-      console.log(`   ⚠️  WordPress setup automation failed`);
-      console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php to complete setup manually`);
-      console.log(`   📧 Use Email: ${this.config.wordpress.adminEmail}`);
-      console.log(`   👤 Use Username: ${site.wordpress_admin_username || 'admin'}`);
-      console.log(`   🔑 Use Password: ${this.config.wordpress.adminPassword}`);
-      console.log(`   ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`WordPress installation completion failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -1296,26 +1251,16 @@ define('WP_SITEURL', '${siteUrl}');
       const adminEmail = this.config.wordpress.adminEmail;
       const siteTitle = site.wordpress_site_title || 'WordPress Site';
 
-      // Debug output to verify credentials
-      console.log(`   📧 Using Admin Email: ${adminEmail}`);
-      console.log(`   👤 Using Admin Username: ${adminUsername}`);
-      console.log(`   🔑 Using Admin Password: ${adminPassword.substring(0, 8)}...`);
-      console.log(`   🏷️  Using Site Title: ${siteTitle}`);
-      
       // WP-CLI should already be installed globally, just verify
       const wpCommand = this.wpCliCommand;
       
       try {
-        const versionResult = await execAsync(`${wpCommand} --version`);
-        console.log(`   ✅ Using WP-CLI: ${versionResult.stdout.trim()}`);
+        await execAsync(`${wpCommand} --version`);
       } catch (error) {
         throw new Error('WP-CLI not available. Global installation should have been completed earlier.');
       }
       
       // Navigate to site directory and run WordPress installation
-      console.log(`   🚀 Running WordPress core installation...`);
-      console.log(`   🔧 Using WP-CLI command: ${wpCommand}`);
-      
       const installCommand = `cd "${siteDir}" && ${wpCommand} core install ` +
         `--url="${siteUrl}" ` +
         `--title="${siteTitle.replace(/"/g, '\\"')}" ` +
@@ -1324,28 +1269,11 @@ define('WP_SITEURL', '${siteUrl}');
         `--admin_email="${adminEmail}" ` +
         `--skip-email`;
       
-      console.log(`   🔧 Executing: ${wpCommand} core install...`);
-      
       const { stdout, stderr } = await execAsync(installCommand);
-      
-      if (stderr && !stderr.includes('Success:')) {
-        console.log(`   ⚠️  Installation warnings: ${stderr}`);
-      }
-      
-      if (stdout) {
-        console.log(`   📋 Installation output: ${stdout}`);
-      }
       
       // Verify installation was successful
       const verifyCommand = `cd "${siteDir}" && ${wpCommand} core is-installed`;
-      try {
-        await execAsync(verifyCommand);
-        console.log(`   ✅ WordPress installation verified successfully!`);
-        console.log(`   🎉 Admin user created with your credentials`);
-        console.log(`   🌐 You can now login at: ${siteUrl}/wp-admin/`);
-      } catch (error) {
-        throw new Error(`WordPress installation verification failed`);
-      }
+      await execAsync(verifyCommand);
       
     } catch (error: any) {
       console.error(`   ❌ WP-CLI installation failed: ${error.message}`);
@@ -1362,32 +1290,26 @@ define('WP_SITEURL', '${siteUrl}');
     // Check if WP-CLI is already available globally
     try {
       const { stdout } = await execAsync('wp --version --allow-root');
-      console.log(`✅ WP-CLI is already installed globally: ${stdout.trim()}`);
       return 'wp --allow-root';
     } catch (error) {
-      console.log(`📥 WP-CLI not found globally, installing...`);
+      // Install WP-CLI
     }
 
     try {
       // Download WP-CLI using the official stable release URL
-      console.log(`📥 Downloading WP-CLI from official source...`);
       await execAsync('curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar');
       
       // Verify the download worked
-      console.log(`🔍 Verifying WP-CLI download...`);
       await execAsync('php wp-cli.phar --info');
-      console.log(`✅ WP-CLI downloaded successfully`);
       
       // Make it executable
       await execAsync('chmod +x wp-cli.phar');
       
       // Install globally
-      console.log(`🔧 Installing WP-CLI globally...`);
       await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
       
       // Verify global installation (with --allow-root for server environments)
-      const { stdout } = await execAsync('wp --version --allow-root');
-      console.log(`✅ WP-CLI installed globally: ${stdout.trim()}`);
+      await execAsync('wp --version --allow-root');
       
       return 'wp --allow-root';
       
@@ -1395,7 +1317,6 @@ define('WP_SITEURL', '${siteUrl}');
       console.error(`❌ Failed to install WP-CLI globally: ${error.message}`);
       
       // Try alternative installation method
-      console.log(`🔄 Trying alternative installation with wget...`);
       try {
         // Clean up any partial files
         try {
@@ -1412,8 +1333,7 @@ define('WP_SITEURL', '${siteUrl}');
         // Try global installation again
         await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
         
-        const { stdout } = await execAsync('wp --version --allow-root');
-        console.log(`✅ WP-CLI installed globally via wget: ${stdout.trim()}`);
+        await execAsync('wp --version --allow-root');
         
         return 'wp --allow-root';
         
