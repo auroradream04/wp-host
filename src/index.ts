@@ -37,13 +37,10 @@ program
       const config = await ConfigParser.parseConfig(configPath);
       
       if (options.verbose) {
-        console.log(`✅ Configuration loaded successfully:`);
-        console.log(`   - Found ${config.sites.length} site(s) to deploy`);
-        if (config.mysql) {
-          console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
-        } else {
-          console.log(`   - MySQL: Using default localhost:3306`);
-        }
+              console.log(`✅ Configuration loaded successfully:`);
+      console.log(`   - Found ${config.sites.length} site(s) to deploy`);
+      console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
+      console.log(`   - WordPress Admin: ${config.wordpress.adminEmail}`);
       }
 
       console.log('\n🔄 Starting deployment process...');
@@ -56,7 +53,7 @@ program
         
         if (options.verbose) {
           console.log(`   DB User: ${site.db_user || 'auto-generated'}`);
-          console.log(`   Admin Email: ${site.admin_email || 'not specified'}`);
+          console.log(`   DB Name: ${site.database_name || 'auto-generated'}`);
         }
         
         // Placeholder for actual deployment
@@ -95,7 +92,8 @@ program
       console.log('✅ Configuration is valid!');
       console.log(`\n📊 Summary:`);
       console.log(`   - Sites to deploy: ${config.sites.length}`);
-      console.log(`   - MySQL config: ${config.mysql ? 'Provided' : 'Using defaults'}`);
+      console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
+      console.log(`   - WordPress Admin: ${config.wordpress.adminEmail}`);
       
       if (options.verbose) {
         console.log('\n📋 Site Details:');
@@ -104,16 +102,18 @@ program
           console.log(`      Path: ${site.directory_path}`);
           console.log(`      Database: ${site.database_name}`);
           if (site.db_user) console.log(`      DB User: ${site.db_user}`);
-          if (site.admin_email) console.log(`      Admin Email: ${site.admin_email}`);
         });
         
-        if (config.mysql) {
-          console.log('\n🗄️  MySQL Configuration:');
-          console.log(`      Host: ${config.mysql.host}`);
-          console.log(`      Port: ${config.mysql.port}`);
-          console.log(`      Admin User: ${config.mysql.adminUser}`);
-          console.log(`      Password: ${'*'.repeat(config.mysql.adminPassword.length)}`);
-        }
+        console.log('\n🗄️  MySQL Configuration:');
+        console.log(`      Host: ${config.mysql.host}`);
+        console.log(`      Port: ${config.mysql.port}`);
+        console.log(`      Root User: ${config.mysql.rootUser}`);
+        console.log(`      Root Password: ${'*'.repeat(config.mysql.rootPassword.length)}`);
+        console.log(`      Shared DB Password: ${'*'.repeat(config.mysql.sharedDbPassword.length)}`);
+        
+        console.log('\n🌐 WordPress Configuration:');
+        console.log(`      Admin Email: ${config.wordpress.adminEmail}`);
+        console.log(`      Admin Password: ${'*'.repeat(config.wordpress.adminPassword.length)}`);
       }
       
     } catch (error) {
