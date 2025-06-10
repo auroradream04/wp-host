@@ -507,65 +507,27 @@ export class WordPressManager {
     } catch (error) {
       console.log(`   ⚠️  Could not set SQL mode: ${error instanceof Error ? error.message : String(error)}`);
     }
+    
     const tables = [
-      // wp_options table - stores WordPress settings
-      `CREATE TABLE wp_options (
-        option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        option_name varchar(191) NOT NULL DEFAULT '',
-        option_value longtext NOT NULL,
-        autoload varchar(20) NOT NULL DEFAULT 'yes',
-        PRIMARY KEY (option_id),
-        UNIQUE KEY option_name (option_name)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
-
-      // wp_users table - stores user accounts
-      `CREATE TABLE wp_users (
-        ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        user_login varchar(60) NOT NULL DEFAULT '',
-        user_pass varchar(255) NOT NULL DEFAULT '',
-        user_nicename varchar(50) NOT NULL DEFAULT '',
-        user_email varchar(100) NOT NULL DEFAULT '',
-        user_url varchar(100) NOT NULL DEFAULT '',
-        user_registered datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        user_activation_key varchar(255) NOT NULL DEFAULT '',
-        user_status int(11) NOT NULL DEFAULT '0',
-        display_name varchar(250) NOT NULL DEFAULT '',
-        PRIMARY KEY (ID),
-        KEY user_login_key (user_login),
-        KEY user_nicename (user_nicename),
-        KEY user_email (user_email)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
-
-      // wp_usermeta table - stores user metadata
-      `CREATE TABLE wp_usermeta (
-        umeta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) unsigned NOT NULL DEFAULT '0',
-        meta_key varchar(255) DEFAULT NULL,
-        meta_value longtext,
-        PRIMARY KEY (umeta_id),
-        KEY user_id (user_id),
-        KEY meta_key (meta_key(191))
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
-
-      // wp_posts table - stores posts and pages
+      // wp_posts - Blog posts, pages, and custom post types
       `CREATE TABLE wp_posts (
         ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         post_author bigint(20) unsigned NOT NULL DEFAULT '0',
-        post_date datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        post_date_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        post_content longtext,
-        post_title text,
-        post_excerpt text,
+        post_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_date_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_content longtext NOT NULL,
+        post_title text NOT NULL,
+        post_excerpt text NOT NULL,
         post_status varchar(20) NOT NULL DEFAULT 'publish',
         comment_status varchar(20) NOT NULL DEFAULT 'open',
         ping_status varchar(20) NOT NULL DEFAULT 'open',
         post_password varchar(255) NOT NULL DEFAULT '',
         post_name varchar(200) NOT NULL DEFAULT '',
-        to_ping text,
-        pinged text,
-        post_modified datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        post_modified_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        post_content_filtered longtext,
+        to_ping text NOT NULL,
+        pinged text NOT NULL,
+        post_modified datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_modified_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_content_filtered longtext NOT NULL,
         post_parent bigint(20) unsigned NOT NULL DEFAULT '0',
         guid varchar(255) NOT NULL DEFAULT '',
         menu_order int(11) NOT NULL DEFAULT '0',
@@ -579,7 +541,46 @@ export class WordPressManager {
         KEY post_author (post_author)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_postmeta table - stores post metadata
+      // wp_users - User account information
+      `CREATE TABLE wp_users (
+        ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_login varchar(60) NOT NULL DEFAULT '',
+        user_pass varchar(255) NOT NULL DEFAULT '',
+        user_nicename varchar(50) NOT NULL DEFAULT '',
+        user_email varchar(100) NOT NULL DEFAULT '',
+        user_url varchar(100) NOT NULL DEFAULT '',
+        user_registered datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        user_activation_key varchar(255) NOT NULL DEFAULT '',
+        user_status int(11) NOT NULL DEFAULT '0',
+        display_name varchar(250) NOT NULL DEFAULT '',
+        PRIMARY KEY (ID),
+        KEY user_login_key (user_login),
+        KEY user_nicename (user_nicename),
+        KEY user_email (user_email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_usermeta - Additional user metadata
+      `CREATE TABLE wp_usermeta (
+        umeta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        meta_key varchar(255) DEFAULT NULL,
+        meta_value longtext,
+        PRIMARY KEY (umeta_id),
+        KEY user_id (user_id),
+        KEY meta_key (meta_key(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_options - WordPress configuration settings
+      `CREATE TABLE wp_options (
+        option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        option_name varchar(191) NOT NULL DEFAULT '',
+        option_value longtext NOT NULL,
+        autoload varchar(20) NOT NULL DEFAULT 'yes',
+        PRIMARY KEY (option_id),
+        UNIQUE KEY option_name (option_name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_postmeta - Post metadata
       `CREATE TABLE wp_postmeta (
         meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         post_id bigint(20) unsigned NOT NULL DEFAULT '0',
@@ -590,7 +591,7 @@ export class WordPressManager {
         KEY meta_key (meta_key(191))
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_comments table - stores comments
+      // wp_comments - Comment data
       `CREATE TABLE wp_comments (
         comment_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         comment_post_ID bigint(20) unsigned NOT NULL DEFAULT '0',
@@ -598,8 +599,8 @@ export class WordPressManager {
         comment_author_email varchar(100) NOT NULL DEFAULT '',
         comment_author_url varchar(200) NOT NULL DEFAULT '',
         comment_author_IP varchar(100) NOT NULL DEFAULT '',
-        comment_date datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        comment_date_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        comment_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        comment_date_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
         comment_content text NOT NULL,
         comment_karma int(11) NOT NULL DEFAULT '0',
         comment_approved varchar(20) NOT NULL DEFAULT '1',
@@ -615,7 +616,7 @@ export class WordPressManager {
         KEY comment_author_email (comment_author_email(10))
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_commentmeta table - stores comment metadata
+      // wp_commentmeta - Comment metadata
       `CREATE TABLE wp_commentmeta (
         meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         comment_id bigint(20) unsigned NOT NULL DEFAULT '0',
@@ -626,7 +627,7 @@ export class WordPressManager {
         KEY meta_key (meta_key(191))
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_terms table - stores taxonomy terms
+      // wp_terms - Categories, tags, and taxonomy terms
       `CREATE TABLE wp_terms (
         term_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         name varchar(200) NOT NULL DEFAULT '',
@@ -637,10 +638,10 @@ export class WordPressManager {
         KEY name (name(191))
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_termmeta table - stores term metadata
+      // wp_termmeta - Term metadata
       `CREATE TABLE wp_termmeta (
         meta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        term_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        term_id bigint(20) unsigned NOT NULL DEFAULT 0,
         meta_key varchar(255) DEFAULT NULL,
         meta_value longtext,
         PRIMARY KEY (meta_id),
@@ -648,29 +649,29 @@ export class WordPressManager {
         KEY meta_key (meta_key(191))
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_term_taxonomy table - stores taxonomy information
+      // wp_term_taxonomy - Taxonomy definitions
       `CREATE TABLE wp_term_taxonomy (
         term_taxonomy_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        term_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        term_id bigint(20) unsigned NOT NULL DEFAULT 0,
         taxonomy varchar(32) NOT NULL DEFAULT '',
         description longtext NOT NULL,
-        parent bigint(20) unsigned NOT NULL DEFAULT '0',
-        count bigint(20) NOT NULL DEFAULT '0',
+        parent bigint(20) unsigned NOT NULL DEFAULT 0,
+        count bigint(20) NOT NULL DEFAULT 0,
         PRIMARY KEY (term_taxonomy_id),
         UNIQUE KEY term_id_taxonomy (term_id,taxonomy),
         KEY taxonomy (taxonomy)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_term_relationships table - relates posts to taxonomy terms
+      // wp_term_relationships - Links posts to terms
       `CREATE TABLE wp_term_relationships (
-        object_id bigint(20) unsigned NOT NULL DEFAULT '0',
-        term_taxonomy_id bigint(20) unsigned NOT NULL DEFAULT '0',
-        term_order int(11) NOT NULL DEFAULT '0',
+        object_id bigint(20) unsigned NOT NULL DEFAULT 0,
+        term_taxonomy_id bigint(20) unsigned NOT NULL DEFAULT 0,
+        term_order int(11) NOT NULL DEFAULT 0,
         PRIMARY KEY (object_id,term_taxonomy_id),
         KEY term_taxonomy_id (term_taxonomy_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
 
-      // wp_links table - stores links/blogroll
+      // wp_links - Link manager data
       `CREATE TABLE wp_links (
         link_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         link_url varchar(255) NOT NULL DEFAULT '',
@@ -679,9 +680,9 @@ export class WordPressManager {
         link_target varchar(25) NOT NULL DEFAULT '',
         link_description varchar(255) NOT NULL DEFAULT '',
         link_visible varchar(20) NOT NULL DEFAULT 'Y',
-        link_owner bigint(20) unsigned NOT NULL DEFAULT '1',
-        link_rating int(11) NOT NULL DEFAULT '0',
-        link_updated datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        link_owner bigint(20) unsigned NOT NULL DEFAULT 1,
+        link_rating int(11) NOT NULL DEFAULT 0,
+        link_updated datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
         link_rel varchar(255) NOT NULL DEFAULT '',
         link_notes mediumtext NOT NULL,
         link_rss varchar(255) NOT NULL DEFAULT '',
@@ -841,12 +842,14 @@ export class WordPressManager {
       ['auto_update_core_dev', 'enabled'],
       ['auto_update_core_minor', 'enabled'],
       ['auto_update_core_major', 'enabled'],
+      ['wp_force_deactivated_plugins', 'a:0:{}'],
       // Critical installation completion markers
       ['fresh_site', '1'],
       ['WPLANG', ''],
       ['initial_db_version', '57155'],
       ['can_compress_scripts', '1'],
       ['db_upgraded', ''],
+      // WordPress user roles - complete definition from official schema
       ['wp_user_roles', 'a:5:{s:13:"administrator";a:2:{s:4:"name";s:13:"Administrator";s:12:"capabilities";a:61:{s:13:"switch_themes";b:1;s:11:"edit_themes";b:1;s:16:"activate_plugins";b:1;s:12:"edit_plugins";b:1;s:10:"edit_users";b:1;s:10:"edit_files";b:1;s:14:"manage_options";b:1;s:17:"moderate_comments";b:1;s:17:"manage_categories";b:1;s:12:"manage_links";b:1;s:12:"upload_files";b:1;s:6:"import";b:1;s:15:"unfiltered_html";b:1;s:10:"edit_posts";b:1;s:17:"edit_others_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:10:"edit_pages";b:1;s:4:"read";b:1;s:8:"level_10";b:1;s:7:"level_9";b:1;s:7:"level_8";b:1;s:7:"level_7";b:1;s:7:"level_6";b:1;s:7:"level_5";b:1;s:7:"level_4";b:1;s:7:"level_3";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:17:"edit_others_pages";b:1;s:20:"edit_published_pages";b:1;s:13:"publish_pages";b:1;s:12:"delete_pages";b:1;s:19:"delete_others_pages";b:1;s:22:"delete_published_pages";b:1;s:12:"delete_posts";b:1;s:19:"delete_others_posts";b:1;s:22:"delete_published_posts";b:1;s:20:"delete_private_posts";b:1;s:18:"edit_private_posts";b:1;s:18:"read_private_posts";b:1;s:20:"delete_private_pages";b:1;s:18:"edit_private_pages";b:1;s:18:"read_private_pages";b:1;s:12:"delete_users";b:1;s:12:"create_users";b:1;s:17:"unfiltered_upload";b:1;s:14:"edit_dashboard";b:1;s:14:"update_plugins";b:1;s:14:"delete_plugins";b:1;s:15:"install_plugins";b:1;s:13:"update_themes";b:1;s:14:"install_themes";b:1;s:11:"update_core";b:1;s:10:"list_users";b:1;s:12:"remove_users";b:1;s:13:"promote_users";b:1;s:18:"edit_theme_options";b:1;s:13:"delete_themes";b:1;s:6:"export";b:1;}}s:6:"editor";a:2:{s:4:"name";s:6:"Editor";s:12:"capabilities";a:34:{s:17:"moderate_comments";b:1;s:17:"manage_categories";b:1;s:12:"manage_links";b:1;s:12:"upload_files";b:1;s:15:"unfiltered_html";b:1;s:10:"edit_posts";b:1;s:17:"edit_others_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:10:"edit_pages";b:1;s:4:"read";b:1;s:7:"level_7";b:1;s:7:"level_6";b:1;s:7:"level_5";b:1;s:7:"level_4";b:1;s:7:"level_3";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:17:"edit_others_pages";b:1;s:20:"edit_published_pages";b:1;s:13:"publish_pages";b:1;s:12:"delete_pages";b:1;s:19:"delete_others_pages";b:1;s:22:"delete_published_pages";b:1;s:12:"delete_posts";b:1;s:19:"delete_others_posts";b:1;s:22:"delete_published_posts";b:1;s:20:"delete_private_posts";b:1;s:18:"edit_private_posts";b:1;s:18:"read_private_posts";b:1;s:20:"delete_private_pages";b:1;s:18:"edit_private_pages";b:1;s:18:"read_private_pages";b:1;}}s:6:"author";a:2:{s:4:"name";s:6:"Author";s:12:"capabilities";a:10:{s:12:"upload_files";b:1;s:10:"edit_posts";b:1;s:20:"edit_published_posts";b:1;s:13:"publish_posts";b:1;s:4:"read";b:1;s:7:"level_2";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:12:"delete_posts";b:1;s:22:"delete_published_posts";b:1;}}s:11:"contributor";a:2:{s:4:"name";s:11:"Contributor";s:12:"capabilities";a:5:{s:10:"edit_posts";b:1;s:4:"read";b:1;s:7:"level_1";b:1;s:7:"level_0";b:1;s:12:"delete_posts";b:1;}}s:10:"subscriber";a:2:{s:4:"name";s:10:"Subscriber";s:12:"capabilities";a:2:{s:4:"read";b:1;s:7:"level_0";b:1;}}}']
     ];
 
