@@ -109,22 +109,8 @@ program
       
       console.log(`✅ WordPress installed and configured successfully (${wpSummary.successful}/${wpSummary.total})`);
       
-      // Step 3: wp-config.php generation
-      console.log('\n⚙️  Step 3: Generating wp-config.php files...');
-      const configManager = new ConfigManager(config);
-      
-      const configResults = await configManager.generateAllConfigs();
-      const configSummary = configManager.getSummary(configResults);
-      
-      if (configSummary.failed > 0) {
-        console.error(`❌ wp-config.php generation failed for ${configSummary.failed} sites. Deployment incomplete.`);
-        process.exit(1);
-      }
-      
-      console.log(`✅ wp-config.php files generated successfully (${configSummary.successful}/${configSummary.total})`);
-      
-      // Step 4: Set file permissions
-      console.log('\n🔒 Step 4: Setting file permissions...');
+      // Step 3: Set file permissions
+      console.log('\n🔒 Step 3: Setting file permissions...');
       const permissionsManager = new PermissionsManager(config);
       
       const permissionResults = await permissionsManager.setAllPermissions();
@@ -137,31 +123,31 @@ program
       
       console.log(`✅ File permissions set successfully (${permissionSummary.successful}/${permissionSummary.total})`);
       
-      // Step 5: Generate application passwords (optional)
+      // Step 4: Generate application passwords (optional)
       let appPasswordResults;
       if (deploymentOptions.generateAppPasswords) {
-        console.log('\n🔑 Step 5: Generating application passwords...');
+        console.log('\n🔑 Step 4: Generating application passwords...');
         const appPasswordManager = new AppPasswordManager(config);
         
         appPasswordResults = await appPasswordManager.generateAllAppPasswords();
         appPasswordManager.displaySummary(appPasswordResults);
       }
       
-      // Step 6: Export deployment results (optional)
+      // Step 5: Export deployment results (optional)
       let exportPath;
       if (deploymentOptions.generateExport) {
-        console.log('\n📊 Step 6: Exporting deployment results...');
+        console.log('\n📊 Step 5: Exporting deployment results...');
         const exportManager = new ExportManager(config);
         
         exportPath = await exportManager.generateDeploymentExport(
-          configResults,
+          wpResults,
           appPasswordResults,
           deploymentOptions.exportPath
         );
       }
       
       // Show completion summary
-      const totalSuccessful = Math.min(dbSummary.successful, wpSummary.successful, configSummary.successful, permissionSummary.successful);
+      const totalSuccessful = Math.min(dbSummary.successful, wpSummary.successful, permissionSummary.successful);
       
       promptService.displayCompletionSummary(
         totalSuccessful,
@@ -174,7 +160,7 @@ program
       if (options.verbose) {
         console.log('\n📋 Detailed Results:');
         for (const site of config.sites) {
-          const siteResult = configResults.find(r => r.site_name === site.site_name);
+          const siteResult = wpResults.find(r => r.site_name === site.site_name);
           console.log(`\n📦 Site: ${site.site_name}`);
           console.log(`   Directory: ${site.directory_path}`);
           console.log(`   Database: ${site.database_name}`);
