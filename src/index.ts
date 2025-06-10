@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { ConfigParser } from './config-parser';
+import { MySQLManager } from './mysql-manager';
 import { Config } from './types';
 
 const program = new Command();
@@ -122,6 +123,56 @@ program
     }
   });
 
+program
+  .command('test-connection')
+  .description('Test MySQL connection using configuration file')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🧪 MySQL Connection Tester');
+    console.log('==========================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading MySQL configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      const mysqlManager = new MySQLManager(config.mysql);
+      
+      // Test connection
+      const isConnected = await mysqlManager.testConnection();
+      
+      if (isConnected) {
+        // Get server info if connection successful
+        await mysqlManager.connect();
+        const serverInfo = await mysqlManager.getServerInfo();
+        await mysqlManager.disconnect();
+        
+        console.log('\n📊 MySQL Server Information:');
+        console.log(`   Version: ${serverInfo.version}`);
+        console.log(`   Host: ${serverInfo.host}:${serverInfo.port}`);
+        console.log('\n✅ MySQL connection is working correctly!');
+        console.log('🚀 You can now run deployment commands.');
+      } else {
+        console.log('\n❌ MySQL connection failed!');
+        console.log('💡 Please check:');
+        console.log('   - MySQL server is running');
+        console.log('   - Host and port are correct');
+        console.log('   - Root username and password are correct');
+        process.exit(1);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Connection test failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Add help examples
 program.on('--help', () => {
   console.log('');
@@ -129,6 +180,7 @@ program.on('--help', () => {
   console.log('  $ wp-hosting-automation deploy');
   console.log('  $ wp-hosting-automation deploy -c my-sites.json -v');
   console.log('  $ wp-hosting-automation validate -c sites.csv');
+  console.log('  $ wp-hosting-automation test-connection');
   console.log('');
   console.log('Configuration file formats:');
   console.log('  JSON: { "sites": [{"site_name": "...", "directory_path": "...", "database_name": "..."}] }');
