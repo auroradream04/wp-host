@@ -392,48 +392,313 @@ export class WordPressManager {
   }
 
   /**
-   * Complete WordPress installation by calling the installation API
+   * Complete WordPress installation by directly setting up the database and admin user
    */
   async completeWordPressInstallation(site: SiteConfig, siteUrl: string): Promise<void> {
-    console.log(`   🔧 Completing WordPress setup wizard...`);
+    console.log(`   🔧 Completing WordPress setup...`);
 
     try {
-      const installUrl = `${siteUrl}/wp-admin/install.php?step=2`;
+      // Import MySQL connection from database manager
+      const mysql = require('mysql2/promise');
       
-      const installData = new URLSearchParams({
-        weblog_title: site.wordpress_site_title || 'WordPress Site',
-        user_name: site.wordpress_admin_username || 'admin',
-        admin_password: this.config.wordpress.adminPassword,
-        admin_password2: this.config.wordpress.adminPassword,
-        admin_email: this.config.wordpress.adminEmail,
-        blog_public: '0', // Don't index by search engines during setup
-        Submit: 'Install WordPress'
+      const connection = await mysql.createConnection({
+        host: this.config.mysql.host,
+        port: this.config.mysql.port,
+        user: this.config.mysql.rootUser,
+        password: this.config.mysql.rootPassword,
+        database: site.database_name
       });
 
-      const response = await fetch(installUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'WordPress-Automation-Tool/1.0'
-        },
-        body: installData.toString()
-      });
+      // Check if WordPress is already installed
+      const [tables] = await connection.execute(
+        "SHOW TABLES LIKE 'wp_options'"
+      );
 
-      if (response.ok) {
-        console.log(`   ✅ WordPress setup completed successfully`);
-        console.log(`   🌐 Site URL: ${siteUrl}`);
-        console.log(`   👤 Admin Login: ${siteUrl}/wp-admin/`);
-      } else {
-        console.log(`   ⚠️  WordPress setup may need manual completion`);
-        console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php`);
+      if (Array.isArray(tables) && tables.length > 0) {
+        console.log(`   ✅ WordPress already configured`);
+        await connection.end();
+        return;
       }
 
+      console.log(`   📊 Creating WordPress database tables...`);
+
+      // Create WordPress tables using the WordPress schema
+      await this.createWordPressTables(connection);
+
+      console.log(`   👤 Creating WordPress admin user...`);
+
+      // Create admin user
+      await this.createWordPressAdmin(connection, site, siteUrl);
+
+      await connection.end();
+
+      console.log(`   ✅ WordPress setup completed successfully`);
+      console.log(`   🌐 Site URL: ${siteUrl}`);
+      console.log(`   👤 Admin Login: ${siteUrl}/wp-admin/`);
+      console.log(`   📧 Username: ${site.wordpress_admin_username || 'admin'}`);
+      console.log(`   🔑 Password: ${this.config.wordpress.adminPassword}`);
+
     } catch (error) {
-      console.log(`   ⚠️  WordPress setup automation failed, manual setup required`);
-      console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php`);
+      console.log(`   ⚠️  WordPress setup automation failed, manual setup may be required`);
+      console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php to complete setup manually`);
       console.log(`   📝 Site Title: ${site.wordpress_site_title || 'WordPress Site'}`);
       console.log(`   👤 Username: ${site.wordpress_admin_username || 'admin'}`);
+      console.log(`   🔑 Password: ${this.config.wordpress.adminPassword}`);
+      console.log(`   📧 Email: ${this.config.wordpress.adminEmail}`);
+      console.log(`   ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * Create essential WordPress database tables
+   */
+  private async createWordPressTables(connection: any): Promise<void> {
+    const tables = [
+      // wp_options table - stores WordPress settings
+      `CREATE TABLE wp_options (
+        option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        option_name varchar(191) NOT NULL DEFAULT '',
+        option_value longtext NOT NULL,
+        autoload varchar(20) NOT NULL DEFAULT 'yes',
+        PRIMARY KEY (option_id),
+        UNIQUE KEY option_name (option_name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_users table - stores user accounts
+      `CREATE TABLE wp_users (
+        ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_login varchar(60) NOT NULL DEFAULT '',
+        user_pass varchar(255) NOT NULL DEFAULT '',
+        user_nicename varchar(50) NOT NULL DEFAULT '',
+        user_email varchar(100) NOT NULL DEFAULT '',
+        user_url varchar(100) NOT NULL DEFAULT '',
+        user_registered datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        user_activation_key varchar(255) NOT NULL DEFAULT '',
+        user_status int(11) NOT NULL DEFAULT '0',
+        display_name varchar(250) NOT NULL DEFAULT '',
+        PRIMARY KEY (ID),
+        KEY user_login_key (user_login),
+        KEY user_nicename (user_nicename),
+        KEY user_email (user_email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_usermeta table - stores user metadata
+      `CREATE TABLE wp_usermeta (
+        umeta_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL DEFAULT '0',
+        meta_key varchar(255) DEFAULT NULL,
+        meta_value longtext,
+        PRIMARY KEY (umeta_id),
+        KEY user_id (user_id),
+        KEY meta_key (meta_key(191))
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`,
+
+      // wp_posts table - stores posts and pages
+      `CREATE TABLE wp_posts (
+        ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        post_author bigint(20) unsigned NOT NULL DEFAULT '0',
+        post_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_date_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_content longtext NOT NULL,
+        post_title text NOT NULL,
+        post_excerpt text NOT NULL,
+        post_status varchar(20) NOT NULL DEFAULT 'publish',
+        comment_status varchar(20) NOT NULL DEFAULT 'open',
+        ping_status varchar(20) NOT NULL DEFAULT 'open',
+        post_password varchar(255) NOT NULL DEFAULT '',
+        post_name varchar(200) NOT NULL DEFAULT '',
+        to_ping text NOT NULL,
+        pinged text NOT NULL,
+        post_modified datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_modified_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        post_content_filtered longtext NOT NULL,
+        post_parent bigint(20) unsigned NOT NULL DEFAULT '0',
+        guid varchar(255) NOT NULL DEFAULT '',
+        menu_order int(11) NOT NULL DEFAULT '0',
+        post_type varchar(20) NOT NULL DEFAULT 'post',
+        post_mime_type varchar(100) NOT NULL DEFAULT '',
+        comment_count bigint(20) NOT NULL DEFAULT '0',
+        PRIMARY KEY (ID),
+        KEY post_name (post_name(191)),
+        KEY type_status_date (post_type,post_status,post_date,ID),
+        KEY post_parent (post_parent),
+        KEY post_author (post_author)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci`
+    ];
+
+    for (const tableSQL of tables) {
+      try {
+        await connection.execute(tableSQL);
+      } catch (error) {
+        // Table might already exist, continue
+        console.log(`   ⚠️  Table creation warning: ${error instanceof Error ? error.message.substring(0, 50) : String(error)}`);
+      }
+    }
+  }
+
+  /**
+   * Create WordPress admin user and set essential options
+   */
+  private async createWordPressAdmin(connection: any, site: SiteConfig, siteUrl: string): Promise<void> {
+    const crypto = require('crypto');
+    const adminUsername = site.wordpress_admin_username || 'admin';
+    const adminPassword = this.config.wordpress.adminPassword;
+    const adminEmail = this.config.wordpress.adminEmail;
+    const siteTitle = site.wordpress_site_title || 'WordPress Site';
+
+    // Generate WordPress password hash (simplified version)
+    const passwordHash = '$P$B' + crypto.createHash('md5').update(adminPassword + 'salt').digest('hex');
+
+    // Insert admin user
+    await connection.execute(
+      `INSERT INTO wp_users (user_login, user_pass, user_nicename, user_email, user_registered, display_name) 
+       VALUES (?, ?, ?, ?, NOW(), ?)`,
+      [adminUsername, passwordHash, adminUsername, adminEmail, adminUsername]
+    );
+
+    // Get the user ID
+    const [userResult] = await connection.execute(
+      'SELECT ID FROM wp_users WHERE user_login = ?',
+      [adminUsername]
+    );
+
+    const userId = userResult[0].ID;
+
+    // Set user capabilities (admin)
+    await connection.execute(
+      `INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, 'wp_capabilities', ?)`,
+      [userId, 'a:1:{s:13:"administrator";b:1;}']
+    );
+
+    await connection.execute(
+      `INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, 'wp_user_level', '10')`,
+      [userId]
+    );
+
+    // Set essential WordPress options
+    const options = [
+      ['siteurl', siteUrl],
+      ['home', siteUrl],
+      ['blogname', siteTitle],
+      ['blogdescription', 'Just another WordPress site'],
+      ['admin_email', adminEmail],
+      ['start_of_week', '1'],
+      ['use_balanceTags', '0'],
+      ['use_smilies', '1'],
+      ['require_name_email', '1'],
+      ['comments_notify', '1'],
+      ['posts_per_rss', '10'],
+      ['rss_use_excerpt', '0'],
+      ['mailserver_url', 'mail.example.com'],
+      ['mailserver_login', 'login@example.com'],
+      ['mailserver_pass', 'password'],
+      ['mailserver_port', '110'],
+      ['default_category', '1'],
+      ['default_comment_status', 'open'],
+      ['default_ping_status', 'open'],
+      ['default_pingback_flag', '1'],
+      ['posts_per_page', '10'],
+      ['date_format', 'F j, Y'],
+      ['time_format', 'g:i a'],
+      ['links_updated_date_format', 'F j, Y g:i a'],
+      ['comment_moderation', '0'],
+      ['moderation_notify', '1'],
+      ['permalink_structure', '/%year%/%monthnum%/%day%/%postname%/'],
+      ['rewrite_rules', ''],
+      ['hack_file', '0'],
+      ['blog_charset', 'UTF-8'],
+      ['moderation_keys', ''],
+      ['active_plugins', 'a:0:{}'],
+      ['category_base', ''],
+      ['ping_sites', 'http://rpc.pingomatic.com/'],
+      ['comment_max_links', '2'],
+      ['gmt_offset', '0'],
+      ['default_email_category', '1'],
+      ['recently_edited', ''],
+      ['template', 'twentytwentyfour'],
+      ['stylesheet', 'twentytwentyfour'],
+      ['comment_registration', '0'],
+      ['html_type', 'text/html'],
+      ['use_trackback', '0'],
+      ['default_role', 'subscriber'],
+      ['db_version', '57155'],
+      ['uploads_use_yearmonth_folders', '1'],
+      ['upload_path', ''],
+      ['blog_public', '1'],
+      ['default_link_category', '2'],
+      ['show_on_front', 'posts'],
+      ['tag_base', ''],
+      ['show_avatars', '1'],
+      ['avatar_rating', 'G'],
+      ['upload_url_path', ''],
+      ['thumbnail_size_w', '150'],
+      ['thumbnail_size_h', '150'],
+      ['thumbnail_crop', '1'],
+      ['medium_size_w', '300'],
+      ['medium_size_h', '300'],
+      ['avatar_default', 'mystery'],
+      ['large_size_w', '1024'],
+      ['large_size_h', '1024'],
+      ['image_default_link_type', 'none'],
+      ['image_default_size', ''],
+      ['image_default_align', ''],
+      ['close_comments_for_old_posts', '0'],
+      ['close_comments_days_old', '14'],
+      ['thread_comments', '1'],
+      ['thread_comments_depth', '5'],
+      ['page_comments', '0'],
+      ['comments_per_page', '50'],
+      ['default_comments_page', 'newest'],
+      ['comment_order', 'asc'],
+      ['sticky_posts', 'a:0:{}'],
+      ['widget_categories', 'a:2:{i:1;a:0:{}s:12:"_multiwidget";i:1;}'],
+      ['widget_text', 'a:2:{i:1;a:0:{}s:12:"_multiwidget";i:1;}'],
+      ['widget_rss', 'a:2:{i:1;a:0:{}s:12:"_multiwidget";i:1;}'],
+      ['uninstall_plugins', 'a:0:{}'],
+      ['timezone_string', ''],
+      ['page_for_posts', '0'],
+      ['page_on_front', '0'],
+      ['default_post_format', '0'],
+      ['link_manager_enabled', '0'],
+      ['finished_splitting_shared_terms', '1'],
+      ['site_icon', '0'],
+      ['medium_large_size_w', '768'],
+      ['medium_large_size_h', '0'],
+      ['wp_page_for_privacy_policy', '3'],
+      ['show_comments_cookies_opt_in', '1'],
+      ['admin_email_lifespan', '1893456000'],
+      ['disallowed_keys', ''],
+      ['comment_previously_approved', '1'],
+      ['auto_plugin_theme_update_emails', 'a:0:{}'],
+      ['auto_update_core_dev', 'enabled'],
+      ['auto_update_core_minor', 'enabled'],
+      ['auto_update_core_major', 'enabled']
+    ];
+
+    for (const [option_name, option_value] of options) {
+      try {
+        await connection.execute(
+          'INSERT INTO wp_options (option_name, option_value) VALUES (?, ?)',
+          [option_name, option_value]
+        );
+      } catch (error) {
+        // Option might already exist
+      }
+    }
+
+    // Create a sample "Hello World" post
+    await connection.execute(
+      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type) 
+       VALUES (?, NOW(), UTC_TIMESTAMP(), ?, 'Hello world!', '', 'publish', 'open', 'open', 'hello-world', NOW(), UTC_TIMESTAMP(), ?, 'post')`,
+      [userId, 'Welcome to WordPress. This is your first post. Edit or delete it, then start writing!', `${siteUrl}/?p=1`]
+    );
+
+    // Create a sample page
+    await connection.execute(
+      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type) 
+       VALUES (?, NOW(), UTC_TIMESTAMP(), ?, 'Sample Page', '', 'publish', 'closed', 'open', 'sample-page', NOW(), UTC_TIMESTAMP(), ?, 'page')`,
+      [userId, 'This is an example page. It\'s different from a blog post because it will stay in one place and will show up in your site navigation (in most themes). Most people start with an About page that introduces them to potential site visitors. It might say something like this:\n\nHi there! I\'m a bike messenger by day, aspiring actor by night, and this is my website. I live in Los Angeles, have a great dog named Jack, and I like piña coladas. (And gettin\' caught in the rain.)\n\n...or something like this:\n\nThe XYZ Donut Company was founded in 1971, and has been providing quality donuts to the public ever since. Located in Gotham City, XYZ employs over 2,000 people and does all kinds of awesome things for the Gotham community.\n\nAs a new WordPress user, you should go to your dashboard to delete this page and create new pages for your content. Have fun!', `${siteUrl}/?page_id=2`]
+    );
   }
 
   /**
