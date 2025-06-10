@@ -430,6 +430,54 @@ export class WordPressManager {
       // Create admin user
       await this.createWordPressAdmin(connection, site, siteUrl);
 
+      // Verify that WordPress recognizes this as a valid installation
+      console.log(`   🔍 Verifying WordPress installation detection...`);
+      
+      try {
+        // Check if siteurl option was set correctly
+        const [siteurlCheck] = await connection.execute(
+          `SELECT option_value FROM wp_options WHERE option_name = 'siteurl'`
+        );
+        
+        if (siteurlCheck && siteurlCheck[0]) {
+          console.log(`   ✅ siteurl option set to: ${siteurlCheck[0].option_value}`);
+        } else {
+          console.log(`   ⚠️  siteurl option not found in database!`);
+        }
+
+        // Check if we have the critical autoloaded options
+        const [autoloadedCheck] = await connection.execute(
+          `SELECT COUNT(*) as count FROM wp_options WHERE autoload = 'yes'`
+        );
+        
+        console.log(`   ℹ️  Autoloaded options count: ${autoloadedCheck[0].count}`);
+
+        // Check if WordPress will recognize installation as complete
+        const [installationCheck] = await connection.execute(
+          `SELECT 
+            (SELECT COUNT(*) FROM wp_options WHERE option_name = 'siteurl' AND option_value != '') as has_siteurl,
+            (SELECT COUNT(*) FROM wp_options WHERE option_name = 'home' AND option_value != '') as has_home,
+            (SELECT COUNT(*) FROM wp_users) as user_count,
+            (SELECT COUNT(*) FROM wp_posts WHERE post_type = 'post') as post_count`
+        );
+        
+        const check = installationCheck[0];
+        console.log(`   📊 Installation verification:`);
+        console.log(`       - siteurl set: ${check.has_siteurl > 0 ? '✅' : '❌'}`);
+        console.log(`       - home set: ${check.has_home > 0 ? '✅' : '❌'}`);
+        console.log(`       - users created: ${check.user_count}`);
+        console.log(`       - posts created: ${check.post_count}`);
+        
+        if (check.has_siteurl > 0 && check.has_home > 0 && check.user_count > 0) {
+          console.log(`   ✅ WordPress installation should be recognized as complete`);
+        } else {
+          console.log(`   ⚠️  WordPress may still show installation wizard`);
+        }
+        
+      } catch (error) {
+        console.log(`   ⚠️  Could not verify installation: ${error instanceof Error ? error.message : String(error)}`);
+      }
+
       await connection.end();
 
       console.log(`   ✅ WordPress setup completed successfully`);
