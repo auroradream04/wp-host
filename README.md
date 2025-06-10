@@ -100,22 +100,24 @@ The easiest way to configure the tool is using the included **spreadsheet templa
 
 | Column | Description | Example |
 |--------|-------------|---------|
-| `site_name` | Unique identifier for the site | `acme_corp_site` |
-| `directory_path` | Where WordPress will be installed | `/var/www/html/acme-corp` |
-| `mysql_host` | MySQL server hostname | `localhost` |
-| `mysql_port` | MySQL server port | `3306` |
-| `mysql_root_user` | MySQL root username | `root` |
-| `mysql_root_password` | MySQL root password | `CHANGE_THIS_MYSQL_ROOT_PASSWORD` |
-| `mysql_shared_db_password` | Password for all site databases | `secure_shared_password_2024` |
-| `wordpress_admin_password` | WordPress admin password for all sites | `strong_wp_admin_password` |
-| `wordpress_admin_email` | WordPress admin email for all sites | `admin@yourcompany.com` |
+| `Site Name` | Unique identifier for the site (no spaces!) | `acme_corp_site` |
+| `Directory Path` | Where WordPress will be installed | `/var/www/html/acme-corp` |
+| `WordPress Site Title` | The display name of your website | `Acme Corp Website` |
+| `WordPress Admin Username` | Admin username for this site | `admin` |
+| `MySQL Host` | MySQL server hostname | `localhost` |
+| `MySQL Port` | MySQL server port | `3306` |
+| `MySQL Username` | MySQL root username | `root` |
+| `MySQL Password` | MySQL root password | `CHANGE_THIS_MYSQL_ROOT_PASSWORD` |
+| `Database Password` | Password for all site databases | `secure_shared_password_2024` |
+| `WordPress Admin Password` | WordPress admin password for all sites | `strong_wp_admin_password` |
+| `WordPress Admin Email` | WordPress admin email for all sites | `admin@yourcompany.com` |
 
 **Template Example:**
 ```csv
-site_name,directory_path,mysql_host,mysql_port,mysql_root_user,mysql_root_password,mysql_shared_db_password,wordpress_admin_password,wordpress_admin_email
-acme_corp_site,/var/www/html/acme-corp,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
-johns_restaurant,/var/www/html/johns-restaurant,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
-beauty_salon_site,/var/www/html/beauty-salon,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+Site Name,Directory Path,WordPress Site Title,WordPress Admin Username,MySQL Host,MySQL Port,MySQL Username,MySQL Password,Database Password,WordPress Admin Password,WordPress Admin Email
+acme_corp_site,/var/www/html/acme-corp,Acme Corp Website,admin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+johns_restaurant,/var/www/html/johns-restaurant,John's Italian Restaurant,johnadmin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+beauty_salon_site,/var/www/html/beauty-salon,Beauty & Wellness Salon,beautyadmin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
 ```
 
 4. **Save as CSV**: Make sure to save/export as CSV format
@@ -423,20 +425,55 @@ npm run deploy --help
 
 ## 🔍 What the Tool Does
 
+### 🚀 **Complete WordPress Setup** - Yes, Everything!
+
 For each site in your configuration, the tool will:
 
-1. **Create MySQL Database**: `{site_name}_db` (e.g., `client1_site_db`)
-2. **Create MySQL User**: `{site_name}_user` (e.g., `client1_site_user`)
-3. **Set Database Password**: Uses your `sharedDbPassword` for all databases
+#### **📊 Database Setup**
+1. **Create MySQL Database**: `{site_name}_db` (e.g., `acme_corp_site_db`)
+2. **Create MySQL User**: `{site_name}_user` (e.g., `acme_corp_site_user`)
+3. **Set Database Password**: Uses your "Database Password" for all databases
 4. **Grant Permissions**: Full access to the database for the user
-5. **Download WordPress**: Latest version to the specified directory
-6. **Extract WordPress**: Unzips and places files in the target directory
-7. **Generate wp-config.php**: Creates configuration file with database settings
-8. **Generate Security Keys**: Adds unique WordPress authentication keys
-9. **Set Table Prefix**: Uses site-specific prefix for database tables
-10. **Set File Permissions**: Applies WordPress security best practices (755/644/600)
-11. **Secure Configuration**: wp-config.php set to 600, uploads directory to 755
-12. **Ready to Use**: WordPress sites are fully configured, secured, and ready
+
+#### **🌐 WordPress Installation**
+5. **Download WordPress**: Latest version from wordpress.org
+6. **Extract WordPress**: Unzips and places files in your specified directory
+7. **Generate wp-config.php**: Creates configuration file with:
+   - Database connection settings
+   - Unique security keys for each site
+   - Site-specific table prefix
+   - Site URL configuration
+
+#### **👤 WordPress Admin Account**
+8. **Create Admin User**: Sets up WordPress admin account with:
+   - **Username**: Your "WordPress Admin Username" (per site)
+   - **Password**: Your "WordPress Admin Password" 
+   - **Email**: Your "WordPress Admin Email"
+   - **Role**: Administrator (full access)
+   - **Site Title**: Your "WordPress Site Title" (displayed to visitors)
+
+#### **🔒 Security & Permissions**
+9. **Set File Permissions**: Applies WordPress security best practices
+   - Directories: 755 (readable/executable)
+   - Files: 644 (readable)
+   - wp-config.php: 600 (secure - owner only)
+   - uploads directory: 755 (writable for media)
+
+#### **✅ Ready to Use**
+10. **Sites are fully functional**: 
+    - Database connected ✅
+    - WordPress installed ✅  
+    - Admin account created ✅
+    - Secure permissions set ✅
+    - **Just visit your site URL to start using WordPress!**
+
+### 🎯 **What You Get After Running the Tool:**
+
+- **Fully functional WordPress sites** ready for content
+- **Admin access** via `/wp-admin/` with your credentials
+- **Secure database setup** with individual databases per site
+- **Professional file permissions** following WordPress best practices
+- **No manual configuration needed** - everything is automated!
 
 ## 🛠️ Troubleshooting
 

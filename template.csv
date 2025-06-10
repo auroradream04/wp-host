@@ -1,4 +1,4 @@
-site_name,directory_path,mysql_host,mysql_port,mysql_root_user,mysql_root_password,mysql_shared_db_password,wordpress_admin_password,wordpress_admin_email
-acme_corp_site,/var/www/html/acme-corp,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
-johns_restaurant,/var/www/html/johns-restaurant,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
-beauty_salon_site,/var/www/html/beauty-salon,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com 
+Site Name,Directory Path,WordPress Site Title,WordPress Admin Username,MySQL Host,MySQL Port,MySQL Username,MySQL Password,Database Password,WordPress Admin Password,WordPress Admin Email
+acme_corp_site,/var/www/html/acme-corp,Acme Corp Website,admin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+johns_restaurant,/var/www/html/johns-restaurant,John's Italian Restaurant,johnadmin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+beauty_salon_site,/var/www/html/beauty-salon,Beauty & Wellness Salon,beautyadmin,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com 

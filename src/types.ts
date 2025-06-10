@@ -11,6 +11,8 @@ export interface WordPressConfig {
   // Shared WordPress admin credentials for all sites
   adminPassword: string;
   adminEmail: string;
+  adminUsername: string;
+  siteTitle: string;
 }
 
 export interface SiteConfig {
@@ -20,6 +22,9 @@ export interface SiteConfig {
   database_name?: string;
   // Optional: if not provided, will be auto-generated as {site_name}_user
   db_user?: string;
+  // Optional: per-site WordPress settings
+  wordpress_site_title?: string;
+  wordpress_admin_username?: string;
 }
 
 export interface Config {

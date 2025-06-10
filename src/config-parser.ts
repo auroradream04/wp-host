@@ -54,8 +54,8 @@ export class ConfigParser {
       const headers = lines[0].split(',').map(h => h.trim());
       
       // Check if this is the comprehensive format (includes MySQL and WordPress config)
-      const isComprehensiveFormat = headers.includes('mysql_host') && 
-                                   headers.includes('wordpress_admin_password');
+      const isComprehensiveFormat = headers.some(h => h.toLowerCase() === 'mysql host' || h === 'mysql_host') && 
+                                   headers.some(h => h.toLowerCase() === 'wordpress admin password' || h === 'wordpress_admin_password');
       
       if (isComprehensiveFormat) {
         return this.parseComprehensiveCSV(lines, headers);
@@ -71,16 +71,19 @@ export class ConfigParser {
    * Parse comprehensive CSV format with all configuration included
    */
   private static parseComprehensiveCSV(lines: string[], headers: string[]): Config {
-    const requiredHeaders = [
-      'site_name', 'directory_path', 'mysql_host', 'mysql_port', 
-      'mysql_root_user', 'mysql_root_password', 'mysql_shared_db_password',
-      'wordpress_admin_password', 'wordpress_admin_email'
+    // Create header mapping for both technical and user-friendly headers
+    const headerMap = this.createHeaderMap(headers);
+    
+    const requiredFields = [
+      'site_name', 'directory_path', 'wordpress_site_title', 'wordpress_admin_username',
+      'mysql_host', 'mysql_port', 'mysql_root_user', 'mysql_root_password', 
+      'mysql_shared_db_password', 'wordpress_admin_password', 'wordpress_admin_email'
     ];
     
-    // Check for required headers
-    for (const required of requiredHeaders) {
-      if (!headers.includes(required)) {
-        throw new Error(`Missing required CSV header: ${required}`);
+    // Check for required headers (using mapped names)
+    for (const required of requiredFields) {
+      if (!headerMap[required]) {
+        throw new Error(`Missing required CSV header: ${required} (or its user-friendly equivalent)`);
       }
     }
 
@@ -100,31 +103,38 @@ export class ConfigParser {
         row[header] = values[index];
       });
 
+      // Map headers to standardized field names
+      const mappedRow = this.mapRowData(row, headerMap);
+
       // Extract MySQL config from first row (assuming all rows have same config)
       if (!mysqlConfig) {
         mysqlConfig = {
-          host: row.mysql_host,
-          port: parseInt(row.mysql_port),
-          rootUser: row.mysql_root_user,
-          rootPassword: row.mysql_root_password,
-          sharedDbPassword: row.mysql_shared_db_password
+          host: mappedRow.mysql_host,
+          port: parseInt(mappedRow.mysql_port),
+          rootUser: mappedRow.mysql_root_user,
+          rootPassword: mappedRow.mysql_root_password,
+          sharedDbPassword: mappedRow.mysql_shared_db_password
         };
       }
 
-      // Extract WordPress config from first row
+      // Extract WordPress config from first row (shared settings)
       if (!wordpressConfig) {
         wordpressConfig = {
-          adminPassword: row.wordpress_admin_password,
-          adminEmail: row.wordpress_admin_email
+          adminPassword: mappedRow.wordpress_admin_password,
+          adminEmail: mappedRow.wordpress_admin_email,
+          adminUsername: 'admin', // Default, will be overridden per site
+          siteTitle: 'WordPress Site' // Default, will be overridden per site
         };
       }
 
-      // Create site config
+      // Create site config with per-site WordPress settings
       const site: SiteConfig = {
-        site_name: row.site_name,
-        directory_path: row.directory_path,
-        database_name: `${row.site_name}_db`,
-        db_user: `${row.site_name}_user`
+        site_name: mappedRow.site_name,
+        directory_path: mappedRow.directory_path,
+        database_name: `${mappedRow.site_name}_db`,
+        db_user: `${mappedRow.site_name}_user`,
+        wordpress_site_title: mappedRow.wordpress_site_title,
+        wordpress_admin_username: mappedRow.wordpress_admin_username
       };
 
       sites.push(site);
@@ -216,6 +226,63 @@ export class ConfigParser {
         site.db_user = `${site.site_name}_user`;
       }
     });
+  }
+
+  /**
+   * Create header mapping for both technical and user-friendly headers
+   */
+  private static createHeaderMap(headers: string[]): Record<string, string> {
+    const headerMap: Record<string, string> = {};
+    
+    // Header mapping from user-friendly to technical names
+    const mappings: Record<string, string> = {
+      'Site Name': 'site_name',
+      'site_name': 'site_name',
+      'Directory Path': 'directory_path', 
+      'directory_path': 'directory_path',
+      'MySQL Host': 'mysql_host',
+      'mysql_host': 'mysql_host',
+      'MySQL Port': 'mysql_port',
+      'mysql_port': 'mysql_port',
+      'MySQL Username': 'mysql_root_user',
+      'mysql_root_user': 'mysql_root_user',
+      'MySQL Password': 'mysql_root_password',
+      'mysql_root_password': 'mysql_root_password',
+      'Database Password': 'mysql_shared_db_password',
+      'mysql_shared_db_password': 'mysql_shared_db_password',
+      'WordPress Site Title': 'wordpress_site_title',
+      'wordpress_site_title': 'wordpress_site_title',
+      'WordPress Admin Username': 'wordpress_admin_username',
+      'wordpress_admin_username': 'wordpress_admin_username',
+      'WordPress Admin Password': 'wordpress_admin_password',
+      'wordpress_admin_password': 'wordpress_admin_password',
+      'WordPress Admin Email': 'wordpress_admin_email',
+      'wordpress_admin_email': 'wordpress_admin_email'
+    };
+
+    // Create reverse mapping from technical names to actual headers
+    headers.forEach(header => {
+      const technicalName = mappings[header];
+      if (technicalName) {
+        headerMap[technicalName] = header;
+      }
+    });
+
+    return headerMap;
+  }
+
+  /**
+   * Map row data using header mapping
+   */
+  private static mapRowData(row: any, headerMap: Record<string, string>): any {
+    const mappedRow: any = {};
+    
+    Object.keys(headerMap).forEach(technicalName => {
+      const actualHeader = headerMap[technicalName];
+      mappedRow[technicalName] = row[actualHeader];
+    });
+
+    return mappedRow;
   }
 
   /**
@@ -434,7 +501,9 @@ export class ConfigParser {
   static getDefaultWordPressConfig(): WordPressConfig {
     return {
       adminPassword: 'wp_admin_password_123',
-      adminEmail: 'admin@example.com'
+      adminEmail: 'admin@example.com',
+      adminUsername: 'admin',
+      siteTitle: 'My WordPress Site'
     };
   }
 } 
