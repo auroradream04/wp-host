@@ -9,6 +9,9 @@ import { DatabaseManager } from './database-manager';
 import { WordPressManager } from './wordpress-manager';
 import { ConfigManager } from './config-manager';
 import { PermissionsManager } from './permissions-manager';
+import { AppPasswordManager } from './app-password-manager';
+import { ExportManager } from './export-manager';
+import { PromptService } from './prompt-service';
 import { Config } from './types';
 
 const program = new Command();
@@ -20,13 +23,13 @@ program
 
 program
   .command('deploy')
-  .description('Deploy WordPress sites from configuration file')
+  .description('Deploy WordPress sites with interactive options')
   .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('--skip-prompts', 'Skip interactive prompts (non-interactive mode)')
+  .option('--app-passwords', 'Generate application passwords automatically')
+  .option('--export [path]', 'Export deployment results to CSV')
   .action(async (options) => {
-    console.log('🚀 WordPress Batch Hosting Tool');
-    console.log('================================');
-    
     const configPath = path.resolve(options.config);
     
     if (!await fs.pathExists(configPath)) {
@@ -42,10 +45,34 @@ program
       const config = await ConfigParser.parseConfig(configPath);
       
       if (options.verbose) {
-              console.log(`✅ Configuration loaded successfully:`);
-      console.log(`   - Found ${config.sites.length} site(s) to deploy`);
-      console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
-      console.log(`   - WordPress Admin: ${config.wordpress.adminEmail}`);
+        console.log(`✅ Configuration loaded successfully:`);
+        console.log(`   - Found ${config.sites.length} site(s) to deploy`);
+        console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
+        console.log(`   - WordPress Admin: ${config.wordpress.adminEmail}`);
+      }
+
+      // Initialize prompt service
+      const promptService = new PromptService();
+      
+      // Get deployment options (interactive or from CLI flags)
+      let deploymentOptions;
+      if (options.skipPrompts) {
+        deploymentOptions = {
+          generateAppPasswords: !!options.appPasswords,
+          generateExport: !!options.export,
+          exportPath: typeof options.export === 'string' ? options.export : undefined
+        };
+      } else {
+        deploymentOptions = await promptService.promptDeploymentOptions();
+      }
+
+      // Show deployment preview and get confirmation
+      if (!options.skipPrompts) {
+        const confirmed = await promptService.promptDeploymentPreview(config.sites.length, deploymentOptions);
+        if (!confirmed) {
+          console.log('❌ Deployment cancelled by user');
+          process.exit(0);
+        }
       }
 
       console.log('\n🔄 Starting deployment process...');
@@ -67,8 +94,8 @@ program
       console.log(`✅ Databases created successfully (${dbSummary.successful}/${dbSummary.total})`);
       await databaseManager.close();
       
-      // Step 2: WordPress installation
-      console.log('\n🌐 Step 2: Installing WordPress...');
+      // Step 2: WordPress installation and setup
+      console.log('\n🌐 Step 2: Installing and configuring WordPress...');
       const wordpressManager = new WordPressManager(config);
       
       const wpResults = await wordpressManager.installAllSites();
@@ -79,7 +106,7 @@ program
         process.exit(1);
       }
       
-      console.log(`✅ WordPress installed successfully (${wpSummary.successful}/${wpSummary.total})`);
+      console.log(`✅ WordPress installed and configured successfully (${wpSummary.successful}/${wpSummary.total})`);
       
       // Step 3: wp-config.php generation
       console.log('\n⚙️  Step 3: Generating wp-config.php files...');
@@ -109,38 +136,63 @@ program
       
       console.log(`✅ File permissions set successfully (${permissionSummary.successful}/${permissionSummary.total})`);
       
-      console.log('\n🎉 Deployment Completed Successfully!');
-      console.log('=====================================');
-      console.log(`✅ Databases: ${dbSummary.successful}/${dbSummary.total} created`);
-      console.log(`✅ WordPress: ${wpSummary.successful}/${wpSummary.total} installed`);
-      console.log(`✅ Configuration: ${configSummary.successful}/${configSummary.total} configured`);
-      console.log(`✅ Permissions: ${permissionSummary.successful}/${permissionSummary.total} secured`);
-      
-      for (const site of config.sites) {
-        const siteResult = configResults.find(r => r.site_name === site.site_name);
-        console.log(`\n📦 Site: ${site.site_name}`);
-        console.log(`   Directory: ${site.directory_path} ✅`);
-        console.log(`   Database: ${site.database_name} ✅`);
-        console.log(`   WordPress: ✅ Installed`);
-        console.log(`   Config: ✅ wp-config.php generated`);
-        console.log(`   Permissions: ✅ File permissions set`);
+      // Step 5: Generate application passwords (optional)
+      let appPasswordResults;
+      if (deploymentOptions.generateAppPasswords) {
+        console.log('\n🔑 Step 5: Generating application passwords...');
+        const appPasswordManager = new AppPasswordManager(config);
         
-        if (siteResult?.wordpress_info) {
-          console.log(`   Site URL: ${siteResult.wordpress_info.site_url}`);
-        }
-        
-        if (options.verbose) {
-          console.log(`   DB User: ${site.db_user}`);
-          console.log(`   DB Name: ${site.database_name}`);
-          console.log(`   Admin User: admin`);
-          console.log(`   Admin Email: ${config.wordpress.adminEmail}`);
-        }
+        appPasswordResults = await appPasswordManager.generateAllAppPasswords();
+        appPasswordManager.displaySummary(appPasswordResults);
       }
       
-      console.log('\n📌 Next Steps:');
-      console.log('   1. Set up web server (Apache/Nginx) configuration');
-      console.log('   2. Your WordPress sites are ready to use!');
-      console.log('   3. Access your sites via the web server to complete WordPress setup');
+      // Step 6: Export deployment results (optional)
+      let exportPath;
+      if (deploymentOptions.generateExport) {
+        console.log('\n📊 Step 6: Exporting deployment results...');
+        const exportManager = new ExportManager(config);
+        
+        exportPath = await exportManager.generateDeploymentExport(
+          configResults,
+          appPasswordResults,
+          deploymentOptions.exportPath
+        );
+      }
+      
+      // Show completion summary
+      const totalSuccessful = Math.min(dbSummary.successful, wpSummary.successful, configSummary.successful, permissionSummary.successful);
+      
+      promptService.displayCompletionSummary(
+        totalSuccessful,
+        config.sites.length,
+        !!appPasswordResults,
+        !!exportPath,
+        exportPath
+      );
+      
+      if (options.verbose) {
+        console.log('\n📋 Detailed Results:');
+        for (const site of config.sites) {
+          const siteResult = configResults.find(r => r.site_name === site.site_name);
+          console.log(`\n📦 Site: ${site.site_name}`);
+          console.log(`   Directory: ${site.directory_path}`);
+          console.log(`   Database: ${site.database_name}`);
+          console.log(`   DB User: ${site.db_user}`);
+          console.log(`   Admin User: ${site.wordpress_admin_username || 'admin'}`);
+          console.log(`   Admin Email: ${config.wordpress.adminEmail}`);
+          
+          if (siteResult?.wordpress_info) {
+            console.log(`   Site URL: ${siteResult.wordpress_info.site_url}`);
+          }
+          
+          if (appPasswordResults) {
+            const appResult = appPasswordResults.find(r => r.site_name === site.site_name);
+            if (appResult) {
+              console.log(`   App Password: ${appResult.app_password}`);
+            }
+          }
+        }
+      }
       
     } catch (error) {
       console.error(`❌ Configuration error: ${error instanceof Error ? error.message : String(error)}`);
@@ -757,26 +809,142 @@ program
     }
   });
 
+program
+  .command('generate-app-passwords')
+  .description('Generate WordPress application passwords for API access')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🔑 WordPress Application Password Generator');
+    console.log('===========================================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize app password manager
+      const appPasswordManager = new AppPasswordManager(config);
+
+      // Generate application passwords
+      const results = await appPasswordManager.generateAllAppPasswords();
+      appPasswordManager.displaySummary(results);
+      
+    } catch (error) {
+      console.error(`❌ Application password generation failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('export-deployment')
+  .description('Export deployment information to CSV spreadsheet')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-o, --output <file>', 'Export file path (must end with .csv)')
+  .option('--include-app-passwords', 'Include application passwords in export')
+  .action(async (options) => {
+    console.log('📊 Deployment Export Generator');
+    console.log('==============================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize export manager
+      const exportManager = new ExportManager(config);
+      
+      // Mock deployment results (since this is a standalone export)
+      const mockResults = config.sites.map(site => ({
+        site_name: site.site_name,
+        status: 'success' as const,
+        wordpress_path: site.directory_path,
+        wordpress_info: {
+          site_url: exportManager['generateSiteUrl'](site.directory_path),
+          admin_user: site.wordpress_admin_username || 'admin',
+          admin_password: config.wordpress.adminPassword,
+          admin_email: config.wordpress.adminEmail
+        }
+      }));
+
+      // Generate app passwords if requested
+      let appPasswordResults;
+      if (options.includeAppPasswords) {
+        console.log('\n🔑 Generating application passwords for export...');
+        const appPasswordManager = new AppPasswordManager(config);
+        appPasswordResults = await appPasswordManager.generateAllAppPasswords();
+      }
+
+      // Generate export
+      const exportPath = await exportManager.generateDeploymentExport(
+        mockResults,
+        appPasswordResults,
+        options.output
+      );
+
+      console.log('\n✅ Export completed successfully!');
+      console.log(`📁 File saved to: ${exportPath}`);
+      
+    } catch (error) {
+      console.error(`❌ Export failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Add help examples
 program.on('--help', () => {
   console.log('');
   console.log('Examples:');
+  console.log('  # Validation and testing');
   console.log('  $ wp-hosting-automation validate');
   console.log('  $ wp-hosting-automation test-connection');
-  console.log('  $ wp-hosting-automation create-databases');
-  console.log('  $ wp-hosting-automation check-databases');
-  console.log('  $ wp-hosting-automation install-wordpress');
-  console.log('  $ wp-hosting-automation check-wordpress');
-  console.log('  $ wp-hosting-automation generate-config');
-  console.log('  $ wp-hosting-automation check-config');
-  console.log('  $ wp-hosting-automation set-permissions');
-  console.log('  $ wp-hosting-automation check-permissions');
+  console.log('');
+  console.log('  # Full deployment (interactive)');
   console.log('  $ wp-hosting-automation deploy');
-  console.log('  $ wp-hosting-automation deploy -c my-sites.json -v');
+  console.log('  $ wp-hosting-automation deploy -c my-sites.csv -v');
+  console.log('');
+  console.log('  # Non-interactive deployment with options');
+  console.log('  $ wp-hosting-automation deploy --skip-prompts --app-passwords --export');
+  console.log('  $ wp-hosting-automation deploy --skip-prompts --export /path/to/results.csv');
+  console.log('');
+  console.log('  # Individual operations');
+  console.log('  $ wp-hosting-automation create-databases');
+  console.log('  $ wp-hosting-automation install-wordpress');
+  console.log('  $ wp-hosting-automation generate-config');
+  console.log('  $ wp-hosting-automation set-permissions');
+  console.log('');
+  console.log('  # Optional features');
+  console.log('  $ wp-hosting-automation generate-app-passwords');
+  console.log('  $ wp-hosting-automation export-deployment --include-app-passwords');
+  console.log('  $ wp-hosting-automation export-deployment -o my-deployment.csv');
+  console.log('');
+  console.log('  # Status checking');
+  console.log('  $ wp-hosting-automation check-databases');
+  console.log('  $ wp-hosting-automation check-wordpress');
+  console.log('  $ wp-hosting-automation check-config');
+  console.log('  $ wp-hosting-automation check-permissions');
   console.log('');
   console.log('Configuration file formats:');
-  console.log('  JSON: { "sites": [{"site_name": "...", "directory_path": "...", "database_name": "..."}] }');
-  console.log('  CSV:  site_name,directory_path,database_name');
+  console.log('  📄 CSV (recommended): Use template.csv for user-friendly column headers');
+  console.log('  📄 JSON: { "mysql": {...}, "wordpress": {...}, "sites": [...] }');
+  console.log('');
+  console.log('Features:');
+  console.log('  🔧 Complete WordPress automation (databases + installation + configuration)');
+  console.log('  🔑 Application password generation for API access');
+  console.log('  📊 Export deployment results to spreadsheet');
+  console.log('  💬 Interactive prompts for optional features');
+  console.log('  🛡️ Security best practices (file permissions, unique keys)');
 });
 
 program.parse();

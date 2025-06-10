@@ -4,7 +4,17 @@
 
 This tool creates MySQL databases and deploys WordPress instances automatically from a simple configuration file. Perfect for developers, agencies, and hosting providers who need to manage multiple WordPress sites efficiently.
 
-📊 **NEW: Spreadsheet-Based Configuration!** Use the included `template.csv` file with Excel, Google Sheets, or any spreadsheet application - no more complex JSON editing!
+## ✨ **Latest Features**
+
+📊 **Spreadsheet-Based Configuration**: Use the included `template.csv` file with Excel, Google Sheets, or any spreadsheet application - no more complex JSON editing!
+
+🔑 **Application Password Generation**: Automatically generate WordPress application passwords for secure API access, perfect for headless WordPress and mobile apps.
+
+📋 **Deployment Export**: Export all deployment information (URLs, credentials, API tokens) to a downloadable spreadsheet for easy team sharing and documentation.
+
+💬 **Interactive Terminal Prompts**: Choose optional features during deployment with user-friendly prompts - no need to remember complex command flags.
+
+🔧 **Complete WordPress Setup**: Automatically completes the WordPress installation wizard - your sites are 100% ready to use immediately after deployment.
 
 ## 📋 Table of Contents
 
@@ -191,8 +201,44 @@ chmod -R 755 /var/www/html/
 
 ## 🚀 Usage
 
+### Method 1: Interactive Deployment (Recommended) 💬
+
+The easiest way to deploy is using the interactive mode with helpful prompts:
+
+```bash
+# Run the interactive deployment
+node dist/index.js deploy -c my-sites.csv
+
+# The tool will ask you:
+# 🔑 Generate application passwords for API access? (y/N)
+# 📊 Export deployment results to spreadsheet? (y/N)
+# 📁 Export file path (optional): [leave blank for auto-generated name]
+```
+
+**What happens during interactive deployment:**
+1. **📋 Preview**: Shows exactly what will be deployed and asks for confirmation
+2. **🔧 Core Deployment**: Creates databases, installs WordPress, sets up configuration
+3. **🔑 Optional**: Generates application passwords if requested
+4. **📊 Optional**: Exports all information to spreadsheet if requested
+5. **🎉 Summary**: Shows completion status and next steps
+
+### Method 2: Non-Interactive Deployment 🤖
+
+For automation scripts or CI/CD pipelines, skip the prompts:
+
+```bash
+# Basic deployment (no extras)
+node dist/index.js deploy -c my-sites.csv --skip-prompts
+
+# With application passwords and export
+node dist/index.js deploy -c my-sites.csv --skip-prompts --app-passwords --export
+
+# Custom export path
+node dist/index.js deploy -c my-sites.csv --skip-prompts --export /path/to/results.csv
+```
+
 ### Step 1: Test Your MySQL Connection
-Before deploying, always test your MySQL connection:
+Before any deployment, always test your MySQL connection:
 
 ```bash
 node dist/index.js test-connection -c my-sites.csv
@@ -408,14 +454,52 @@ Options:
 ```
 
 ### `deploy`
-Deploy WordPress sites (includes database creation, WordPress installation, wp-config.php generation, and file permissions):
+Deploy WordPress sites with interactive options:
 ```bash
 npm run deploy deploy [options]
 
 Options:
-  -c, --config <file>  Configuration file path (default: sites.json)
-  -v, --verbose        Show detailed deployment progress
+  -c, --config <file>    Configuration file path (default: sites.json)
+  -v, --verbose          Show detailed deployment progress
+  --skip-prompts         Skip interactive prompts (non-interactive mode)
+  --app-passwords        Generate application passwords automatically
+  --export [path]        Export deployment results to CSV
 ```
+
+### `generate-app-passwords` 🔑
+Generate WordPress application passwords for API access:
+```bash
+npm run deploy generate-app-passwords [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
+**What this creates:**
+- **Secure API tokens** for each WordPress site
+- **Formatted passwords** in groups of 4 characters (e.g., `abcd efgh ijkl mnop qrst uvwx`)
+- **Perfect for**: Headless WordPress, mobile apps, API integrations
+- **Usage**: Use these instead of regular passwords for programmatic access
+
+### `export-deployment` 📊
+Export deployment information to CSV spreadsheet:
+```bash
+npm run deploy export-deployment [options]
+
+Options:
+  -c, --config <file>        Configuration file path (default: sites.json)
+  -o, --output <file>        Export file path (must end with .csv)
+  --include-app-passwords    Include application passwords in export
+```
+
+**What gets exported:**
+- **Site URLs** and admin login links
+- **WordPress admin credentials** (username, password, email)
+- **Database connection details** (host, database name, user, password)
+- **Application passwords** (if generated)
+- **WordPress REST API endpoints**
+- **Deployment status** and error details
+- **Perfect for**: Team handoff, client documentation, development setup
 
 ### `help`
 Show help information:
