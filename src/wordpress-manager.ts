@@ -10,6 +10,7 @@ import { Config, SiteConfig, DeploymentResult } from './types';
 export class WordPressManager {
   private config: Config;
   private readonly WORDPRESS_DOWNLOAD_URL = 'https://wordpress.org/latest.zip';
+  private wpCliCommand: string = 'wp';
 
   constructor(config: Config) {
     this.config = config;
@@ -23,7 +24,7 @@ export class WordPressManager {
     
     // Install WP-CLI globally once at the beginning
     console.log(`\n🔧 Setting up WP-CLI globally for all sites...`);
-    await this.ensureWPCLIInstalled();
+    this.wpCliCommand = await this.ensureWPCLIInstalled();
     
     const results: DeploymentResult[] = [];
 
@@ -1302,10 +1303,10 @@ define('WP_SITEURL', '${siteUrl}');
       console.log(`   🏷️  Using Site Title: ${siteTitle}`);
       
       // WP-CLI should already be installed globally, just verify
-      const wpCommand = 'wp';
+      const wpCommand = this.wpCliCommand;
       
       try {
-        const versionResult = await execAsync('wp --version');
+        const versionResult = await execAsync(`${wpCommand} --version`);
         console.log(`   ✅ Using WP-CLI: ${versionResult.stdout.trim()}`);
       } catch (error) {
         throw new Error('WP-CLI not available. Global installation should have been completed earlier.');
@@ -1360,9 +1361,9 @@ define('WP_SITEURL', '${siteUrl}');
 
     // Check if WP-CLI is already available globally
     try {
-      const { stdout } = await execAsync('wp --version');
+      const { stdout } = await execAsync('wp --version --allow-root');
       console.log(`✅ WP-CLI is already installed globally: ${stdout.trim()}`);
-      return 'wp';
+      return 'wp --allow-root';
     } catch (error) {
       console.log(`📥 WP-CLI not found globally, installing...`);
     }
@@ -1384,11 +1385,11 @@ define('WP_SITEURL', '${siteUrl}');
       console.log(`🔧 Installing WP-CLI globally...`);
       await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
       
-      // Verify global installation
-      const { stdout } = await execAsync('wp --version');
+      // Verify global installation (with --allow-root for server environments)
+      const { stdout } = await execAsync('wp --version --allow-root');
       console.log(`✅ WP-CLI installed globally: ${stdout.trim()}`);
       
-      return 'wp';
+      return 'wp --allow-root';
       
     } catch (error: any) {
       console.error(`❌ Failed to install WP-CLI globally: ${error.message}`);
@@ -1411,10 +1412,10 @@ define('WP_SITEURL', '${siteUrl}');
         // Try global installation again
         await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
         
-        const { stdout } = await execAsync('wp --version');
+        const { stdout } = await execAsync('wp --version --allow-root');
         console.log(`✅ WP-CLI installed globally via wget: ${stdout.trim()}`);
         
-        return 'wp';
+        return 'wp --allow-root';
         
       } catch (wgetError: any) {
         console.error(`❌ All WP-CLI installation methods failed: ${wgetError.message}`);
