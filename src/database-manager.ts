@@ -71,16 +71,11 @@ export class DatabaseManager {
     console.log(`   User: ${username}@localhost`);
 
     try {
-      // Step 1: Create the database
-      await this.mysqlManager.createDatabase(databaseName);
+      // Use clean slate approach: drop and recreate everything fresh
+      console.log(`   🧹 Using clean slate approach - will drop existing database/user if they exist`);
+      await this.mysqlManager.createDatabaseAndUserClean(databaseName, username, password, 'localhost');
 
-      // Step 2: Create the user
-      await this.mysqlManager.createUser(username, password, 'localhost');
-
-      // Step 3: Grant privileges
-      await this.mysqlManager.grantPrivileges(username, databaseName, 'localhost');
-
-      // Step 4: Test the connection
+      // Test the connection
       console.log(`   🧪 Testing database connection...`);
       const connectionTest = await this.mysqlManager.testDatabaseConnection(
         username, 
