@@ -420,10 +420,10 @@ export class WordPressManager {
         return;
       }
 
-      console.log(`   🚀 Running WordPress installation automatically...`);
+      console.log(`   🚀 Running WordPress installation via WP-CLI...`);
 
-      // Use WordPress's installation process with proper database connection
-      await this.runWordPressInstallationFixed(site, siteUrl);
+      // Use WP-CLI for reliable WordPress installation
+      await this.installWordPressWithWPCLI(site, siteUrl);
 
       // Verify that WordPress recognizes this as a valid installation
       console.log(`   🔍 Verifying WordPress installation detection...`);
@@ -1277,12 +1277,15 @@ define('WP_SITEURL', '${siteUrl}');
   /**
    * Run WordPress's native installation process with proper database handling
    */
-  private async runWordPressInstallationFixed(site: SiteConfig, siteUrl: string): Promise<void> {
+  private async installWordPressWithWPCLI(site: SiteConfig, siteUrl: string): Promise<void> {
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
 
     try {
+      console.log(`   📋 Installing WordPress via WP-CLI for ${site.site_name}...`);
+      
+      const siteDir = site.directory_path;
       const adminUsername = site.wordpress_admin_username || 'admin';
       const adminPassword = this.config.wordpress.adminPassword;
       const adminEmail = this.config.wordpress.adminEmail;
@@ -1293,67 +1296,88 @@ define('WP_SITEURL', '${siteUrl}');
       console.log(`   👤 Using Admin Username: ${adminUsername}`);
       console.log(`   🔑 Using Admin Password: ${adminPassword.substring(0, 8)}...`);
       console.log(`   🏷️  Using Site Title: ${siteTitle}`);
-
-      // Create a more robust PHP script that handles the installation properly
-      const phpScript = `<?php
-// Set up WordPress environment
-define('WP_INSTALLING', true);
-
-// Load WordPress configuration
-require_once '${site.directory_path}/wp-config.php';
-
-// Load WordPress core
-require_once '${site.directory_path}/wp-settings.php';
-
-// Now WordPress is fully loaded, run the installation
-if (!is_blog_installed()) {
-    // Install WordPress with your credentials
-    $result = wp_install(
-        '${siteTitle.replace(/'/g, "\\'")}',
-        '${adminUsername.replace(/'/g, "\\'")}', 
-        '${adminEmail.replace(/'/g, "\\'")}',
-        true, // blog_public
-        '', // deprecated parameter
-        '${adminPassword.replace(/'/g, "\\'")}'
-    );
-    
-    if (is_wp_error($result)) {
-        echo 'ERROR: ' . $result->get_error_message();
-        exit(1);
-    } else {
-        echo 'SUCCESS: WordPress installation completed with user ID: ' . $result['user_id'];
-        exit(0);
-    }
-} else {
-    echo 'SUCCESS: WordPress already installed';
-    exit(0);
-}
-?>`;
-
-      const tempPhpFile = path.join(site.directory_path, 'temp_install.php');
-      await fs.writeFile(tempPhpFile, phpScript);
       
-      // Execute WordPress installation with better error handling
-      console.log(`   🔧 Installing WordPress with your credentials...`);
-      const { stdout, stderr } = await execAsync(`cd ${site.directory_path} && php temp_install.php 2>&1`);
-      
-      // Clean up temp file
-      await fs.remove(tempPhpFile);
-      
-      console.log(`   📝 Installation output: ${stdout.trim()}`);
-      
-      if (stdout.includes('SUCCESS')) {
-        console.log(`   ✅ WordPress installation completed successfully!`);
-        console.log(`   🎉 Admin user created with your credentials`);
-        console.log(`   🌐 You can now login at: ${siteUrl}/wp-admin/`);
-      } else {
-        throw new Error(`Installation failed: ${stdout} ${stderr}`);
+      // Check if WP-CLI is available
+      try {
+        const versionResult = await execAsync('wp --version');
+        console.log(`   ✅ WP-CLI is available: ${versionResult.stdout.trim()}`);
+      } catch (error) {
+        console.log(`   📥 WP-CLI not found, installing...`);
+        await this.installWPCLI();
       }
       
-    } catch (error) {
-      console.log(`   ❌ Automated installation failed: ${error instanceof Error ? error.message : String(error)}`);
+      // Navigate to site directory and run WordPress installation
+      console.log(`   🚀 Running WordPress core installation...`);
+      
+      const installCommand = `cd "${siteDir}" && wp core install ` +
+        `--url="${siteUrl}" ` +
+        `--title="${siteTitle.replace(/"/g, '\\"')}" ` +
+        `--admin_user="${adminUsername}" ` +
+        `--admin_password="${adminPassword}" ` +
+        `--admin_email="${adminEmail}" ` +
+        `--skip-email`;
+      
+      console.log(`   🔧 Executing: wp core install...`);
+      
+      const { stdout, stderr } = await execAsync(installCommand);
+      
+      if (stderr && !stderr.includes('Success:')) {
+        console.log(`   ⚠️  Installation warnings: ${stderr}`);
+      }
+      
+      if (stdout) {
+        console.log(`   📋 Installation output: ${stdout}`);
+      }
+      
+      // Verify installation was successful
+      const verifyCommand = `cd "${siteDir}" && wp core is-installed`;
+      try {
+        await execAsync(verifyCommand);
+        console.log(`   ✅ WordPress installation verified successfully!`);
+        console.log(`   🎉 Admin user created with your credentials`);
+        console.log(`   🌐 You can now login at: ${siteUrl}/wp-admin/`);
+      } catch (error) {
+        throw new Error(`WordPress installation verification failed`);
+      }
+      
+    } catch (error: any) {
+      console.error(`   ❌ WP-CLI installation failed: ${error.message}`);
       console.log(`   🔧 Falling back to manual installation process...`);
-      throw error; // Re-throw to trigger fallback
+      throw error;
+    }
+  }
+
+  private async installWPCLI(): Promise<void> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+
+    try {
+      console.log(`   📥 Installing WP-CLI...`);
+      
+      // Download WP-CLI
+      await execAsync('curl -O https://raw.githubusercontent.com/wp-cli/wp-cli/v2.10.0/utils/wp-cli.phar');
+      
+      // Make it executable
+      await execAsync('chmod +x wp-cli.phar');
+      
+      // Move to system path (or use locally)
+      try {
+        await execAsync('sudo mv wp-cli.phar /usr/local/bin/wp');
+        console.log(`   ✅ WP-CLI installed globally`);
+      } catch (error) {
+        // If sudo fails, we'll use it locally
+        await execAsync('mv wp-cli.phar wp');
+        console.log(`   ✅ WP-CLI installed locally`);
+      }
+      
+      // Verify installation
+      const { stdout } = await execAsync('wp --version');
+      console.log(`   ✅ WP-CLI version: ${stdout.trim()}`);
+      
+    } catch (error: any) {
+      console.error(`   ❌ Failed to install WP-CLI: ${error.message}`);
+      throw error;
     }
   }
 
