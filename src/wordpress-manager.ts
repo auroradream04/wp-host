@@ -78,13 +78,17 @@ export class WordPressManager {
         throw new Error('WordPress installation verification failed');
       }
 
+      // Step 6: Complete WordPress installation (setup wizard)
+      const siteUrl = this.generateSiteUrl(targetDir);
+      await this.completeWordPressInstallation(site, siteUrl);
+
       return {
         site_name: site.site_name,
         status: 'success',
         wordpress_path: targetDir,
         wordpress_info: {
-          site_url: `http://localhost${targetDir.startsWith('/var/www') ? '' : ':8080'}`,
-          admin_user: 'admin',
+          site_url: siteUrl,
+          admin_user: site.wordpress_admin_username || 'admin',
           admin_password: this.config.wordpress.adminPassword,
           admin_email: this.config.wordpress.adminEmail
         }
@@ -230,6 +234,68 @@ export class WordPressManager {
       }
       
       throw new Error(`WordPress extraction failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Generate site URL based on directory path
+   */
+  private generateSiteUrl(targetDir: string): string {
+    // Try to determine the site URL based on directory structure
+    if (targetDir.includes('/var/www/html/')) {
+      const sitePath = targetDir.replace('/var/www/html/', '');
+      return `http://localhost/${sitePath}`;
+    } else if (targetDir.includes('/var/www/')) {
+      const sitePath = targetDir.replace('/var/www/', '');
+      return `http://localhost/${sitePath}`;
+    } else {
+      // Local development
+      return `http://localhost:8080`;
+    }
+  }
+
+  /**
+   * Complete WordPress installation by calling the installation API
+   */
+  async completeWordPressInstallation(site: SiteConfig, siteUrl: string): Promise<void> {
+    console.log(`   🔧 Completing WordPress setup wizard...`);
+
+    try {
+      const installUrl = `${siteUrl}/wp-admin/install.php?step=2`;
+      
+      const installData = new URLSearchParams({
+        weblog_title: site.wordpress_site_title || 'WordPress Site',
+        user_name: site.wordpress_admin_username || 'admin',
+        admin_password: this.config.wordpress.adminPassword,
+        admin_password2: this.config.wordpress.adminPassword,
+        admin_email: this.config.wordpress.adminEmail,
+        blog_public: '0', // Don't index by search engines during setup
+        Submit: 'Install WordPress'
+      });
+
+      const response = await fetch(installUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'WordPress-Automation-Tool/1.0'
+        },
+        body: installData.toString()
+      });
+
+      if (response.ok) {
+        console.log(`   ✅ WordPress setup completed successfully`);
+        console.log(`   🌐 Site URL: ${siteUrl}`);
+        console.log(`   👤 Admin Login: ${siteUrl}/wp-admin/`);
+      } else {
+        console.log(`   ⚠️  WordPress setup may need manual completion`);
+        console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php`);
+      }
+
+    } catch (error) {
+      console.log(`   ⚠️  WordPress setup automation failed, manual setup required`);
+      console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php`);
+      console.log(`   📝 Site Title: ${site.wordpress_site_title || 'WordPress Site'}`);
+      console.log(`   👤 Username: ${site.wordpress_admin_username || 'admin'}`);
     }
   }
 
