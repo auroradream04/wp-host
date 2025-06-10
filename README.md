@@ -173,13 +173,31 @@ npm run deploy validate -v
 # or: wp-hosting-automation validate -v
 ```
 
-### Step 3: Deploy WordPress Sites
-Run the deployment:
+### Step 3: Create Databases
+Create MySQL databases and users for all sites:
+
+```bash
+npm run deploy create-databases -v
+# or: wp-hosting-automation create-databases -v
+```
+
+### Step 4: Check Database Status
+Verify that databases and users were created successfully:
+
+```bash
+npm run deploy check-databases
+# or: wp-hosting-automation check-databases
+```
+
+### Step 5: Deploy WordPress Sites
+Run the full deployment (includes database creation):
 
 ```bash
 npm run deploy deploy -v
 # or: wp-hosting-automation deploy -v
 ```
+
+> **Note**: The `deploy` command now automatically creates databases as part of the process. You can run `create-databases` separately for more control or to test database setup before WordPress installation.
 
 ## 📖 Commands
 
@@ -202,8 +220,37 @@ Options:
   -c, --config <file>  Configuration file path (default: sites.json)
 ```
 
+### `create-databases`
+Create MySQL databases and users for all sites:
+```bash
+npm run deploy create-databases [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  -v, --verbose        Show detailed creation progress
+```
+
+### `check-databases`
+Check status of databases and users:
+```bash
+npm run deploy check-databases [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
+### `cleanup-databases`
+⚠️ **DESTRUCTIVE**: Remove all databases and users:
+```bash
+npm run deploy cleanup-databases [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  --confirm           Required flag to confirm destructive operation
+```
+
 ### `deploy`
-Deploy WordPress sites:
+Deploy WordPress sites (includes database creation):
 ```bash
 npm run deploy deploy [options]
 
