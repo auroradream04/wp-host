@@ -6,6 +6,7 @@ import * as path from 'path';
 import { ConfigParser } from './config-parser';
 import { MySQLManager } from './mysql-manager';
 import { DatabaseManager } from './database-manager';
+import { WordPressManager } from './wordpress-manager';
 import { Config } from './types';
 
 const program = new Command();
@@ -64,27 +65,37 @@ program
       console.log(`✅ Databases created successfully (${dbSummary.successful}/${dbSummary.total})`);
       await databaseManager.close();
       
-      // Step 2: WordPress installation (placeholder)
+      // Step 2: WordPress installation
       console.log('\n🌐 Step 2: Installing WordPress...');
-      console.log('🚧 WordPress installation will be implemented in next tasks.');
+      const wordpressManager = new WordPressManager(config);
+      
+      const wpResults = await wordpressManager.installAllSites();
+      const wpSummary = wordpressManager.getSummary(wpResults);
+      
+      if (wpSummary.failed > 0) {
+        console.error(`❌ WordPress installation failed for ${wpSummary.failed} sites. Deployment incomplete.`);
+        process.exit(1);
+      }
+      
+      console.log(`✅ WordPress installed successfully (${wpSummary.successful}/${wpSummary.total})`);
+      
+      console.log('\n📊 Deployment Summary:');
+      console.log(`✅ Databases: ${dbSummary.successful}/${dbSummary.total} created`);
+      console.log(`✅ WordPress: ${wpSummary.successful}/${wpSummary.total} installed`);
+      console.log('🚧 Configuration: wp-config.php generation pending');
       
       for (const site of config.sites) {
-        console.log(`\n📦 Processing site: ${site.site_name}`);
-        console.log(`   Directory: ${site.directory_path}`);
+        console.log(`\n📦 Site: ${site.site_name}`);
+        console.log(`   Directory: ${site.directory_path} ✅`);
         console.log(`   Database: ${site.database_name} ✅`);
+        console.log(`   WordPress: ✅ Installed`);
+        console.log(`   Config: ⏳ Pending wp-config.php generation`);
         
         if (options.verbose) {
           console.log(`   DB User: ${site.db_user}`);
           console.log(`   DB Name: ${site.database_name}`);
         }
-        
-        // Placeholder for WordPress installation
-        console.log(`   WordPress: ⏳ Ready for installation`);
       }
-      
-      console.log('\n📊 Deployment Summary:');
-      console.log(`✅ Databases: ${dbSummary.successful}/${dbSummary.total} created`);
-      console.log('🚧 WordPress: Installation pending');
       
     } catch (error) {
       console.error(`❌ Configuration error: ${error instanceof Error ? error.message : String(error)}`);
@@ -339,6 +350,131 @@ program
     }
   });
 
+program
+  .command('install-wordpress')
+  .description('Download and install WordPress for all sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    console.log('🌐 WordPress Installer');
+    console.log('======================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    let wordpressManager: WordPressManager | null = null;
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      if (options.verbose) {
+        console.log(`✅ Configuration loaded: ${config.sites.length} site(s) found`);
+      }
+
+      // Initialize WordPress manager
+      wordpressManager = new WordPressManager(config);
+
+      // Install WordPress for all sites
+      const results = await wordpressManager.installAllSites();
+
+      // Show summary
+      const summary = wordpressManager.getSummary(results);
+      console.log('\n📊 WordPress Installation Summary');
+      console.log('==================================');
+      console.log(`Total Sites: ${summary.total}`);
+      console.log(`✅ Successful: ${summary.successful}`);
+      console.log(`❌ Failed: ${summary.failed}`);
+      console.log(`⏭️  Skipped: ${summary.skipped}`);
+
+      if (summary.failed > 0) {
+        console.log('\n⚠️  Some WordPress installations failed. Check the errors above.');
+        process.exit(1);
+      } else {
+        console.log('\n🎉 All WordPress installations completed successfully!');
+        console.log('✅ Ready for configuration.');
+      }
+      
+    } catch (error) {
+      console.error(`❌ WordPress installation failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('check-wordpress')
+  .description('Check status of WordPress installations for all sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🔍 WordPress Status Checker');
+    console.log('===========================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize WordPress manager
+      const wordpressManager = new WordPressManager(config);
+
+      // Generate report
+      await wordpressManager.generateReport();
+      
+    } catch (error) {
+      console.error(`❌ WordPress check failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cleanup-wordpress')
+  .description('Remove all WordPress installations (WARNING: DESTRUCTIVE!)')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    console.log('🧹 WordPress Cleanup');
+    console.log('====================');
+    console.log('⚠️  WARNING: This will permanently delete all WordPress installations!');
+    
+    if (!options.confirm) {
+      console.log('\n❌ This is a destructive operation. Use --confirm flag to proceed.');
+      console.log('Example: wp-hosting-automation cleanup-wordpress --confirm');
+      process.exit(1);
+    }
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize WordPress manager
+      const wordpressManager = new WordPressManager(config);
+
+      // Cleanup all installations
+      await wordpressManager.cleanupAllInstallations();
+      
+    } catch (error) {
+      console.error(`❌ WordPress cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Add help examples
 program.on('--help', () => {
   console.log('');
@@ -347,6 +483,8 @@ program.on('--help', () => {
   console.log('  $ wp-hosting-automation test-connection');
   console.log('  $ wp-hosting-automation create-databases');
   console.log('  $ wp-hosting-automation check-databases');
+  console.log('  $ wp-hosting-automation install-wordpress');
+  console.log('  $ wp-hosting-automation check-wordpress');
   console.log('  $ wp-hosting-automation deploy');
   console.log('  $ wp-hosting-automation deploy -c my-sites.json -v');
   console.log('');

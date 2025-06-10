@@ -189,15 +189,31 @@ npm run deploy check-databases
 # or: wp-hosting-automation check-databases
 ```
 
-### Step 5: Deploy WordPress Sites
-Run the full deployment (includes database creation):
+### Step 5: Install WordPress
+Download and install WordPress for all sites:
+
+```bash
+npm run deploy install-wordpress -v
+# or: wp-hosting-automation install-wordpress -v
+```
+
+### Step 6: Check WordPress Status
+Verify that WordPress installations completed successfully:
+
+```bash
+npm run deploy check-wordpress
+# or: wp-hosting-automation check-wordpress
+```
+
+### Step 7: Deploy Complete Sites
+Run the full deployment (includes database creation and WordPress installation):
 
 ```bash
 npm run deploy deploy -v
 # or: wp-hosting-automation deploy -v
 ```
 
-> **Note**: The `deploy` command now automatically creates databases as part of the process. You can run `create-databases` separately for more control or to test database setup before WordPress installation.
+> **Note**: The `deploy` command now automatically creates databases and installs WordPress as part of the process. You can run `create-databases` and `install-wordpress` separately for more control or to test each step individually.
 
 ## 📖 Commands
 
@@ -249,8 +265,37 @@ Options:
   --confirm           Required flag to confirm destructive operation
 ```
 
+### `install-wordpress`
+Download and install WordPress for all sites:
+```bash
+npm run deploy install-wordpress [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  -v, --verbose        Show detailed installation progress
+```
+
+### `check-wordpress`
+Check status of WordPress installations:
+```bash
+npm run deploy check-wordpress [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
+### `cleanup-wordpress`
+⚠️ **DESTRUCTIVE**: Remove all WordPress installations:
+```bash
+npm run deploy cleanup-wordpress [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  --confirm           Required flag to confirm destructive operation
+```
+
 ### `deploy`
-Deploy WordPress sites (includes database creation):
+Deploy WordPress sites (includes database creation and WordPress installation):
 ```bash
 npm run deploy deploy [options]
 
