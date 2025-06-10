@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Extract } from 'unzipper';
+import inquirer from 'inquirer';
 import { Config, SiteConfig, DeploymentResult } from './types';
 
 export class WordPressManager {
@@ -61,7 +62,7 @@ export class WordPressManager {
 
     try {
       // Step 1: Prepare directory
-      await this.prepareDirectory(targetDir);
+      await this.prepareDirectory(targetDir, true);
 
       // Step 2: Download WordPress
       const tempZipPath = await this.downloadWordPress(targetDir);
@@ -103,7 +104,7 @@ export class WordPressManager {
   /**
    * Prepare directory for WordPress installation
    */
-  async prepareDirectory(targetDir: string): Promise<void> {
+  async prepareDirectory(targetDir: string, allowCleanup: boolean = false): Promise<void> {
     console.log(`   📁 Preparing directory...`);
 
     // Check if directory exists and is writable
@@ -121,11 +122,49 @@ export class WordPressManager {
         
         if (wpConfigExists || wpIncludesExists) {
           console.log(`   ⚠️  WordPress already exists in ${targetDir}`);
+          
+          if (allowCleanup) {
+            const { confirmOverwrite } = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'confirmOverwrite',
+              message: `⚠️  WordPress already exists in ${targetDir}. Overwrite existing installation?`,
+              default: false
+            }]);
+            
+            if (!confirmOverwrite) {
+              throw new Error('WordPress already installed in target directory');
+            }
+            
+            console.log(`   🧹 Removing existing WordPress installation...`);
+            await fs.emptyDir(targetDir);
+            console.log(`   ✅ Directory cleaned successfully`);
+            return;
+          }
+          
           throw new Error('WordPress already installed in target directory');
         }
         
         console.log(`   ⚠️  Directory not empty: ${targetDir}`);
-        throw new Error('Target directory is not empty');
+        console.log(`   📁 Files found: ${visibleFiles.slice(0, 5).join(', ')}${visibleFiles.length > 5 ? '...' : ''}`);
+        
+        if (allowCleanup) {
+          const { confirmCleanup } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'confirmCleanup',
+            message: `⚠️  Directory ${targetDir} is not empty. Remove all files and continue?`,
+            default: false
+          }]);
+          
+          if (!confirmCleanup) {
+            throw new Error('Target directory is not empty');
+          }
+          
+          console.log(`   🧹 Cleaning directory...`);
+          await fs.emptyDir(targetDir);
+          console.log(`   ✅ Directory cleaned successfully`);
+        } else {
+          throw new Error('Target directory is not empty');
+        }
       }
 
       // Test write permissions
