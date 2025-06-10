@@ -1112,21 +1112,26 @@ export class WordPressManager {
         .replace('password_here', this.config.mysql.sharedDbPassword || '')
         .replace('localhost', this.config.mysql.host || 'localhost');
 
-      // Add WordPress site URL and home URL
+      // Generate unique security keys
+      const generateKey = () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:,.<>?';
+        let result = '';
+        for (let i = 0; i < 64; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      };
+
+      // Replace the placeholder security keys with unique values
+      config = config
+        .replace("'put your unique phrase here'", `'${generateKey()}'`)
+        .replace(/put your unique phrase here/g, () => `'${generateKey()}'`);
+
+      // Add WordPress site URL configuration before the table prefix
       const siteUrlConfig = `
 // WordPress Site URL Configuration
 define('WP_HOME', '${siteUrl}');
 define('WP_SITEURL', '${siteUrl}');
-
-// Security keys (you should replace these with unique values)
-define('AUTH_KEY',         'put your unique phrase here');
-define('SECURE_AUTH_KEY',  'put your unique phrase here');
-define('LOGGED_IN_KEY',    'put your unique phrase here');
-define('NONCE_KEY',        'put your unique phrase here');
-define('AUTH_SALT',        'put your unique phrase here');
-define('SECURE_AUTH_SALT', 'put your unique phrase here');
-define('LOGGED_IN_SALT',   'put your unique phrase here');
-define('NONCE_SALT',       'put your unique phrase here');
 
 `;
 
