@@ -3,6 +3,8 @@
 import { Command } from 'commander';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { ConfigParser } from './config-parser';
+import { Config } from './types';
 
 const program = new Command();
 
@@ -24,26 +26,60 @@ program
     
     if (!await fs.pathExists(configPath)) {
       console.error(`❌ Configuration file not found: ${configPath}`);
+      console.log('\n💡 Create a configuration file with your site details:');
+      console.log('   - JSON format: sites.json');
+      console.log('   - CSV format: sites.csv');
       process.exit(1);
     }
-    
-    console.log(`📋 Using configuration file: ${configPath}`);
-    
-    if (options.verbose) {
-      console.log('🔍 Verbose logging enabled');
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      if (options.verbose) {
+        console.log(`✅ Configuration loaded successfully:`);
+        console.log(`   - Found ${config.sites.length} site(s) to deploy`);
+        if (config.mysql) {
+          console.log(`   - MySQL: ${config.mysql.host}:${config.mysql.port}`);
+        } else {
+          console.log(`   - MySQL: Using default localhost:3306`);
+        }
+      }
+
+      console.log('\n🔄 Starting deployment process...');
+      
+      // TODO: Implement actual deployment logic
+      for (const site of config.sites) {
+        console.log(`\n📦 Processing site: ${site.site_name}`);
+        console.log(`   Directory: ${site.directory_path}`);
+        console.log(`   Database: ${site.database_name}`);
+        
+        if (options.verbose) {
+          console.log(`   DB User: ${site.db_user || 'auto-generated'}`);
+          console.log(`   Admin Email: ${site.admin_email || 'not specified'}`);
+        }
+        
+        // Placeholder for actual deployment
+        console.log(`   Status: ⏳ Ready for deployment`);
+      }
+      
+      console.log('\n✅ Configuration validation complete!');
+      console.log('🚧 Deployment functionality will be implemented in next tasks.');
+      
+    } catch (error) {
+      console.error(`❌ Configuration error: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
     }
-    
-    // TODO: Implement deployment logic
-    console.log('⚠️  Deployment logic not yet implemented');
-    console.log('📝 Next: Implement configuration file parsing');
   });
 
 program
   .command('validate')
   .description('Validate configuration file without deploying')
   .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-v, --verbose', 'Enable verbose logging')
   .action(async (options) => {
-    console.log('🔍 Validating configuration file...');
+    console.log('🔍 WordPress Configuration Validator');
+    console.log('===================================');
     
     const configPath = path.resolve(options.config);
     
@@ -51,14 +87,52 @@ program
       console.error(`❌ Configuration file not found: ${configPath}`);
       process.exit(1);
     }
-    
-    // TODO: Implement validation logic
-    console.log('⚠️  Validation logic not yet implemented');
+
+    try {
+      console.log(`📋 Validating configuration: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      console.log('✅ Configuration is valid!');
+      console.log(`\n📊 Summary:`);
+      console.log(`   - Sites to deploy: ${config.sites.length}`);
+      console.log(`   - MySQL config: ${config.mysql ? 'Provided' : 'Using defaults'}`);
+      
+      if (options.verbose) {
+        console.log('\n📋 Site Details:');
+        config.sites.forEach((site, index) => {
+          console.log(`   ${index + 1}. ${site.site_name}`);
+          console.log(`      Path: ${site.directory_path}`);
+          console.log(`      Database: ${site.database_name}`);
+          if (site.db_user) console.log(`      DB User: ${site.db_user}`);
+          if (site.admin_email) console.log(`      Admin Email: ${site.admin_email}`);
+        });
+        
+        if (config.mysql) {
+          console.log('\n🗄️  MySQL Configuration:');
+          console.log(`      Host: ${config.mysql.host}`);
+          console.log(`      Port: ${config.mysql.port}`);
+          console.log(`      Admin User: ${config.mysql.adminUser}`);
+          console.log(`      Password: ${'*'.repeat(config.mysql.adminPassword.length)}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error(`❌ Validation failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
   });
 
-// If no command is provided, show help
-if (process.argv.length <= 2) {
-  program.help();
-}
+// Add help examples
+program.on('--help', () => {
+  console.log('');
+  console.log('Examples:');
+  console.log('  $ wp-hosting-automation deploy');
+  console.log('  $ wp-hosting-automation deploy -c my-sites.json -v');
+  console.log('  $ wp-hosting-automation validate -c sites.csv');
+  console.log('');
+  console.log('Configuration file formats:');
+  console.log('  JSON: { "sites": [{"site_name": "...", "directory_path": "...", "database_name": "..."}] }');
+  console.log('  CSV:  site_name,directory_path,database_name');
+});
 
-program.parse(process.argv);
+program.parse();
