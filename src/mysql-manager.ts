@@ -161,10 +161,11 @@ export class MySQLManager {
         return;
       }
 
-      await this.connection.execute(
-        `CREATE USER \`${username}\`@\`${host}\` IDENTIFIED BY ?`,
-        [password]
-      );
+      // For MySQL 5.7 compatibility, use string concatenation instead of parameterized password
+      const createUserSQL = `CREATE USER \`${username}\`@\`${host}\` IDENTIFIED BY '${password.replace(/'/g, "''")}'`;
+      console.log(`🔍 Executing SQL: ${createUserSQL.replace(password, '[PASSWORD_HIDDEN]')}`);
+      
+      await this.connection.execute(createUserSQL);
       console.log(`✅ User ${username}@${host} created successfully`);
       
     } catch (error) {
