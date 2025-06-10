@@ -2,7 +2,6 @@
 
 [![npm version](https://img.shields.io/npm/v/wp-host.svg)](https://www.npmjs.com/package/wp-host)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js CI](https://github.com/auroradream04/wp-hosting-automation/workflows/Node.js%20CI/badge.svg)](https://github.com/auroradream04/wp-hosting-automation/actions)
 
 > **Professional WordPress batch deployment tool for hosting providers, developers, and system administrators**
 
@@ -67,8 +66,8 @@ wp-host --help
 
 ### Local Development
 ```bash
-git clone https://github.com/auroradream04/wp-hosting-automation.git
-cd wp-hosting-automation
+git clone https://github.com/auroradream04/wp-host.git
+cd wp-host
 npm install
 npm run build
 npm start deploy -c sites.csv
@@ -228,8 +227,8 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ### Development Setup
 ```bash
-git clone https://github.com/auroradream04/wp-hosting-automation.git
-cd wp-hosting-automation
+git clone https://github.com/auroradream04/wp-host.git
+cd wp-host
 npm install
 npm run dev
 ```
@@ -240,9 +239,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙋‍♂️ Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/auroradream04/wp-hosting-automation/wiki)
-- **Issues**: [GitHub Issues](https://github.com/auroradream04/wp-hosting-automation/issues)  
-- **Discussions**: [GitHub Discussions](https://github.com/auroradream04/wp-hosting-automation/discussions)
+- **Documentation**: [GitHub Wiki](https://github.com/auroradream04/wp-host/wiki)
+- **Issues**: [GitHub Issues](https://github.com/auroradream04/wp-host/issues)  
+- **Discussions**: [GitHub Discussions](https://github.com/auroradream04/wp-host/discussions)
 
 ## 🌟 Related Projects
 

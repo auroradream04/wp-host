@@ -28,14 +28,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/auroradream04/wp-hosting-automation.git"
+    "url": "git+https://github.com/auroradream04/wp-host.git"
   },
   "author": "Aurora Dream <berlin001111@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/auroradream04/wp-hosting-automation/issues"
+    "url": "https://github.com/auroradream04/wp-host/issues"
   },
-  "homepage": "https://github.com/auroradream04/wp-hosting-automation#readme",
+  "homepage": "https://github.com/auroradream04/wp-host#readme",
   "engines": {
     "node": ">=16.0.0"
   },

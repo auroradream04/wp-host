@@ -1,4 +1,0 @@
-site_name,directory_path
-client1_site,/var/www/client1
-client2_site,/var/www/client2
-test_site,./test_wordpress 
