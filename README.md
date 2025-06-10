@@ -4,6 +4,8 @@
 
 This tool creates MySQL databases and deploys WordPress instances automatically from a simple configuration file. Perfect for developers, agencies, and hosting providers who need to manage multiple WordPress sites efficiently.
 
+📊 **NEW: Spreadsheet-Based Configuration!** Use the included `template.csv` file with Excel, Google Sheets, or any spreadsheet application - no more complex JSON editing!
+
 ## 📋 Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -66,12 +68,60 @@ npm install -g wp-hosting-automation
 
 ## ⚙️ Configuration
 
+### Why Use the Spreadsheet Template? 📊
+
+The **spreadsheet template approach** offers several advantages:
+
+✅ **User-Friendly**: No need to understand JSON syntax or worry about formatting errors  
+✅ **Familiar Interface**: Use Excel, Google Sheets, or any spreadsheet app you already know  
+✅ **Copy & Paste Friendly**: Easily copy sites, credentials, and configuration across rows  
+✅ **Bulk Editing**: Change multiple sites at once using spreadsheet features  
+✅ **No Escaping Issues**: No need to worry about special characters or quotes  
+✅ **Visual Organization**: See all your sites and their configuration in one organized view  
+✅ **Easy Sharing**: Share with team members who prefer spreadsheets over technical files  
+
 ### Step 1: Create Configuration File
 
-Create a configuration file with your sites and credentials. You can use either JSON or CSV format:
+The easiest way to configure the tool is using the included **spreadsheet template**. You can open this in Excel, Google Sheets, or any spreadsheet application.
 
-#### **JSON Format** (Recommended)
-Create `sites.json`:
+#### **📊 Spreadsheet Template** (Recommended)
+
+1. **Copy the template**: Use the included `template.csv` file as your starting point
+   ```bash
+   cp template.csv my-sites.csv
+   ```
+
+2. **Edit in your favorite spreadsheet app**:
+   - **Excel**: Open `my-sites.csv` directly
+   - **Google Sheets**: Import the CSV file
+   - **LibreOffice Calc**: Open `my-sites.csv` directly
+
+3. **Fill in your details**:
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| `site_name` | Unique identifier for the site | `acme_corp_site` |
+| `directory_path` | Where WordPress will be installed | `/var/www/html/acme-corp` |
+| `mysql_host` | MySQL server hostname | `localhost` |
+| `mysql_port` | MySQL server port | `3306` |
+| `mysql_root_user` | MySQL root username | `root` |
+| `mysql_root_password` | MySQL root password | `CHANGE_THIS_MYSQL_ROOT_PASSWORD` |
+| `mysql_shared_db_password` | Password for all site databases | `secure_shared_password_2024` |
+| `wordpress_admin_password` | WordPress admin password for all sites | `strong_wp_admin_password` |
+| `wordpress_admin_email` | WordPress admin email for all sites | `admin@yourcompany.com` |
+
+**Template Example:**
+```csv
+site_name,directory_path,mysql_host,mysql_port,mysql_root_user,mysql_root_password,mysql_shared_db_password,wordpress_admin_password,wordpress_admin_email
+acme_corp_site,/var/www/html/acme-corp,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+johns_restaurant,/var/www/html/johns-restaurant,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+beauty_salon_site,/var/www/html/beauty-salon,localhost,3306,root,CHANGE_THIS_MYSQL_ROOT_PASSWORD,secure_shared_password_2024,strong_wp_admin_password,admin@yourcompany.com
+```
+
+4. **Save as CSV**: Make sure to save/export as CSV format
+
+#### **📄 JSON Format** (Alternative)
+If you prefer JSON, create `sites.json`:
 ```json
 {
   "mysql": {
@@ -102,8 +152,8 @@ Create `sites.json`:
 }
 ```
 
-#### **CSV Format** (Simple)
-Create `sites.csv`:
+#### **📋 Simple CSV Format** (Legacy)
+For backwards compatibility, simple CSV files are still supported:
 ```csv
 site_name,directory_path
 client1_site,/var/www/html/client1
@@ -111,7 +161,7 @@ client2_site,/var/www/html/client2
 test_site,./test_wordpress
 ```
 
-> **Note**: When using CSV, the tool will use default MySQL and WordPress credentials. You'll need to update them in the generated configuration.
+> **Note**: When using simple CSV, the tool will use default MySQL and WordPress credentials. You'll need to set these via environment variables.
 
 ### Step 2: Update Your Credentials
 
@@ -143,15 +193,15 @@ chmod -R 755 /var/www/html/
 Before deploying, always test your MySQL connection:
 
 ```bash
-npm run deploy test-connection
-# or if installed globally: wp-hosting-automation test-connection
+node dist/index.js test-connection -c my-sites.csv
+# or if installed globally: wp-hosting-automation test-connection -c my-sites.csv
 ```
 
 **Expected Output:**
 ```
 🧪 MySQL Connection Tester
 ==========================
-📋 Reading MySQL configuration from: /path/to/sites.json
+📋 Reading MySQL configuration from: /path/to/my-sites.csv
 🔌 Connecting to MySQL at localhost:3306...
 ✅ Successfully connected to MySQL as root
 🧪 Testing MySQL connection...
@@ -169,48 +219,52 @@ npm run deploy test-connection
 Check your configuration file for errors:
 
 ```bash
-npm run deploy validate -v
-# or: wp-hosting-automation validate -v
+node dist/index.js validate -c my-sites.csv -v
+# or: wp-hosting-automation validate -c my-sites.csv -v
 ```
 
-### Step 3: Create Databases
+### Step 3: Deploy Complete Sites (Recommended)
+Run the full deployment process (creates databases, installs WordPress, generates config, sets permissions):
+
+```bash
+node dist/index.js deploy -c my-sites.csv -v
+# or: wp-hosting-automation deploy -c my-sites.csv -v
+```
+
+### Alternative: Step-by-Step Process
+
+If you prefer to run each step individually:
+
+#### Create Databases
 Create MySQL databases and users for all sites:
 
 ```bash
-npm run deploy create-databases -v
-# or: wp-hosting-automation create-databases -v
+node dist/index.js create-databases -c my-sites.csv -v
+# or: wp-hosting-automation create-databases -c my-sites.csv -v
 ```
 
-### Step 4: Check Database Status
+#### Check Database Status
 Verify that databases and users were created successfully:
 
 ```bash
-npm run deploy check-databases
-# or: wp-hosting-automation check-databases
+node dist/index.js check-databases -c my-sites.csv
+# or: wp-hosting-automation check-databases -c my-sites.csv
 ```
 
-### Step 5: Install WordPress
+#### Install WordPress
 Download and install WordPress for all sites:
 
 ```bash
-npm run deploy install-wordpress -v
-# or: wp-hosting-automation install-wordpress -v
+node dist/index.js install-wordpress -c my-sites.csv -v
+# or: wp-hosting-automation install-wordpress -c my-sites.csv -v
 ```
 
-### Step 6: Check WordPress Status
+#### Check WordPress Status
 Verify that WordPress installations completed successfully:
 
 ```bash
-npm run deploy check-wordpress
-# or: wp-hosting-automation check-wordpress
-```
-
-### Step 7: Deploy Complete Sites
-Run the full deployment (includes database creation and WordPress installation):
-
-```bash
-npm run deploy deploy -v
-# or: wp-hosting-automation deploy -v
+node dist/index.js check-wordpress -c my-sites.csv
+# or: wp-hosting-automation check-wordpress -c my-sites.csv
 ```
 
 > **Note**: The `deploy` command now automatically creates databases and installs WordPress as part of the process. You can run `create-databases` and `install-wordpress` separately for more control or to test each step individually.
