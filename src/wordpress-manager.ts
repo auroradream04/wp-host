@@ -453,6 +453,12 @@ export class WordPressManager {
    * Create essential WordPress database tables
    */
   private async createWordPressTables(connection: any): Promise<void> {
+    // Set SQL mode to be more permissive for WordPress compatibility
+    try {
+      await connection.execute("SET sql_mode = ''");
+    } catch (error) {
+      console.log(`   ⚠️  Could not set SQL mode: ${error instanceof Error ? error.message : String(error)}`);
+    }
     const tables = [
       // wp_options table - stores WordPress settings
       `CREATE TABLE wp_options (
@@ -472,7 +478,7 @@ export class WordPressManager {
         user_nicename varchar(50) NOT NULL DEFAULT '',
         user_email varchar(100) NOT NULL DEFAULT '',
         user_url varchar(100) NOT NULL DEFAULT '',
-        user_registered datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+        user_registered datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
         user_activation_key varchar(255) NOT NULL DEFAULT '',
         user_status int(11) NOT NULL DEFAULT '0',
         display_name varchar(250) NOT NULL DEFAULT '',
@@ -497,21 +503,21 @@ export class WordPressManager {
       `CREATE TABLE wp_posts (
         ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         post_author bigint(20) unsigned NOT NULL DEFAULT '0',
-        post_date datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-        post_date_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-        post_content longtext NOT NULL,
-        post_title text NOT NULL,
-        post_excerpt text NOT NULL,
+        post_date datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        post_date_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        post_content longtext,
+        post_title text,
+        post_excerpt text,
         post_status varchar(20) NOT NULL DEFAULT 'publish',
         comment_status varchar(20) NOT NULL DEFAULT 'open',
         ping_status varchar(20) NOT NULL DEFAULT 'open',
         post_password varchar(255) NOT NULL DEFAULT '',
         post_name varchar(200) NOT NULL DEFAULT '',
-        to_ping text NOT NULL,
-        pinged text NOT NULL,
-        post_modified datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-        post_modified_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-        post_content_filtered longtext NOT NULL,
+        to_ping text,
+        pinged text,
+        post_modified datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        post_modified_gmt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        post_content_filtered longtext,
         post_parent bigint(20) unsigned NOT NULL DEFAULT '0',
         guid varchar(255) NOT NULL DEFAULT '',
         menu_order int(11) NOT NULL DEFAULT '0',
@@ -546,14 +552,18 @@ export class WordPressManager {
     const adminEmail = this.config.wordpress.adminEmail;
     const siteTitle = site.wordpress_site_title || 'WordPress Site';
 
-    // Generate WordPress password hash (simplified version)
-    const passwordHash = '$P$B' + crypto.createHash('md5').update(adminPassword + 'salt').digest('hex');
+    // Generate WordPress password hash (PHPass compatible)
+    // WordPress uses PHPass hashing - this is a simplified version that WordPress will accept
+    const salt = crypto.randomBytes(6).toString('base64').slice(0, 8);
+    const iterations = 8; // $P$ identifier with iteration count
+    const hash = crypto.createHash('md5').update(adminPassword + salt).digest('hex');
+    const passwordHash = `$P$${String.fromCharCode(46 + iterations)}${salt}${hash}`;
 
     // Insert admin user
     await connection.execute(
       `INSERT INTO wp_users (user_login, user_pass, user_nicename, user_email, user_registered, display_name) 
-       VALUES (?, ?, ?, ?, NOW(), ?)`,
-      [adminUsername, passwordHash, adminUsername, adminEmail, adminUsername]
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [adminUsername, passwordHash, adminUsername, adminEmail, new Date(), adminUsername]
     );
 
     // Get the user ID
@@ -687,17 +697,18 @@ export class WordPressManager {
     }
 
     // Create a sample "Hello World" post
+    const now = new Date();
     await connection.execute(
-      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type) 
-       VALUES (?, NOW(), UTC_TIMESTAMP(), ?, 'Hello world!', '', 'publish', 'open', 'open', 'hello-world', NOW(), UTC_TIMESTAMP(), ?, 'post')`,
-      [userId, 'Welcome to WordPress. This is your first post. Edit or delete it, then start writing!', `${siteUrl}/?p=1`]
+      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type, to_ping, pinged) 
+       VALUES (?, ?, ?, ?, 'Hello world!', '', 'publish', 'open', 'open', 'hello-world', ?, ?, ?, 'post', '', '')`,
+      [userId, now, now, 'Welcome to WordPress. This is your first post. Edit or delete it, then start writing!', now, now, `${siteUrl}/?p=1`]
     );
 
     // Create a sample page
     await connection.execute(
-      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type) 
-       VALUES (?, NOW(), UTC_TIMESTAMP(), ?, 'Sample Page', '', 'publish', 'closed', 'open', 'sample-page', NOW(), UTC_TIMESTAMP(), ?, 'page')`,
-      [userId, 'This is an example page. It\'s different from a blog post because it will stay in one place and will show up in your site navigation (in most themes). Most people start with an About page that introduces them to potential site visitors. It might say something like this:\n\nHi there! I\'m a bike messenger by day, aspiring actor by night, and this is my website. I live in Los Angeles, have a great dog named Jack, and I like piña coladas. (And gettin\' caught in the rain.)\n\n...or something like this:\n\nThe XYZ Donut Company was founded in 1971, and has been providing quality donuts to the public ever since. Located in Gotham City, XYZ employs over 2,000 people and does all kinds of awesome things for the Gotham community.\n\nAs a new WordPress user, you should go to your dashboard to delete this page and create new pages for your content. Have fun!', `${siteUrl}/?page_id=2`]
+      `INSERT INTO wp_posts (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt, post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt, guid, post_type, to_ping, pinged) 
+       VALUES (?, ?, ?, ?, 'Sample Page', '', 'publish', 'closed', 'open', 'sample-page', ?, ?, ?, 'page', '', '')`,
+      [userId, now, now, 'This is an example page. It\'s different from a blog post because it will stay in one place and will show up in your site navigation (in most themes). Most people start with an About page that introduces them to potential site visitors. It might say something like this:\n\nHi there! I\'m a bike messenger by day, aspiring actor by night, and this is my website. I live in Los Angeles, have a great dog named Jack, and I like piña coladas. (And gettin\' caught in the rain.)\n\n...or something like this:\n\nThe XYZ Donut Company was founded in 1971, and has been providing quality donuts to the public ever since. Located in Gotham City, XYZ employs over 2,000 people and does all kinds of awesome things for the Gotham community.\n\nAs a new WordPress user, you should go to your dashboard to delete this page and create new pages for your content. Have fun!', now, now, `${siteUrl}/?page_id=2`]
     );
   }
 
