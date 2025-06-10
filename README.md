@@ -294,8 +294,65 @@ Options:
   --confirm           Required flag to confirm destructive operation
 ```
 
+### `generate-config`
+Generate wp-config.php files for all sites:
+```bash
+npm run deploy generate-config [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  -v, --verbose        Show detailed generation progress
+```
+
+### `check-config`
+Check status of wp-config.php files:
+```bash
+npm run deploy check-config [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
+### `cleanup-config`
+⚠️ **DESTRUCTIVE**: Remove all wp-config.php files:
+```bash
+npm run deploy cleanup-config [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  --confirm           Required flag to confirm destructive operation
+```
+
+### `set-permissions`
+Set appropriate file permissions for all WordPress sites:
+```bash
+npm run deploy set-permissions [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+  -v, --verbose        Show detailed permission setting progress
+```
+
+### `check-permissions`
+Check file permissions status for all WordPress sites:
+```bash
+npm run deploy check-permissions [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
+### `fix-permissions`
+Fix file permissions for all WordPress sites:
+```bash
+npm run deploy fix-permissions [options]
+
+Options:
+  -c, --config <file>  Configuration file path (default: sites.json)
+```
+
 ### `deploy`
-Deploy WordPress sites (includes database creation and WordPress installation):
+Deploy WordPress sites (includes database creation, WordPress installation, wp-config.php generation, and file permissions):
 ```bash
 npm run deploy deploy [options]
 
@@ -319,8 +376,13 @@ For each site in your configuration, the tool will:
 3. **Set Database Password**: Uses your `sharedDbPassword` for all databases
 4. **Grant Permissions**: Full access to the database for the user
 5. **Download WordPress**: Latest version to the specified directory
-6. **Configure WordPress**: Creates `wp-config.php` with database settings
-7. **Set Admin Credentials**: Uses your shared WordPress admin credentials
+6. **Extract WordPress**: Unzips and places files in the target directory
+7. **Generate wp-config.php**: Creates configuration file with database settings
+8. **Generate Security Keys**: Adds unique WordPress authentication keys
+9. **Set Table Prefix**: Uses site-specific prefix for database tables
+10. **Set File Permissions**: Applies WordPress security best practices (755/644/600)
+11. **Secure Configuration**: wp-config.php set to 600, uploads directory to 755
+12. **Ready to Use**: WordPress sites are fully configured, secured, and ready
 
 ## 🛠️ Troubleshooting
 
@@ -367,6 +429,28 @@ chmod -R 755 /var/www/html/
 - Check your JSON syntax with a JSON validator
 - Ensure all required fields are present
 - Verify site names contain only letters, numbers, underscores, and hyphens
+
+### File Permission Issues
+
+**Error**: `Permission denied` when WordPress tries to write files
+```bash
+# Check current permissions
+npm run deploy check-permissions
+
+# Fix permissions automatically
+npm run deploy fix-permissions
+
+# Or manually set permissions
+chmod -R 755 /var/www/html/your-site/wp-content/
+chmod 600 /var/www/html/your-site/wp-config.php
+```
+
+**WordPress Upload Issues**
+```bash
+# Ensure uploads directory is writable
+chmod 755 /var/www/html/your-site/wp-content/uploads/
+chown -R www-data:www-data /var/www/html/your-site/wp-content/uploads/
+```
 
 ## 📚 Examples
 

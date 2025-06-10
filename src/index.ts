@@ -7,6 +7,8 @@ import { ConfigParser } from './config-parser';
 import { MySQLManager } from './mysql-manager';
 import { DatabaseManager } from './database-manager';
 import { WordPressManager } from './wordpress-manager';
+import { ConfigManager } from './config-manager';
+import { PermissionsManager } from './permissions-manager';
 import { Config } from './types';
 
 const program = new Command();
@@ -79,23 +81,66 @@ program
       
       console.log(`✅ WordPress installed successfully (${wpSummary.successful}/${wpSummary.total})`);
       
-      console.log('\n📊 Deployment Summary:');
+      // Step 3: wp-config.php generation
+      console.log('\n⚙️  Step 3: Generating wp-config.php files...');
+      const configManager = new ConfigManager(config);
+      
+      const configResults = await configManager.generateAllConfigs();
+      const configSummary = configManager.getSummary(configResults);
+      
+      if (configSummary.failed > 0) {
+        console.error(`❌ wp-config.php generation failed for ${configSummary.failed} sites. Deployment incomplete.`);
+        process.exit(1);
+      }
+      
+      console.log(`✅ wp-config.php files generated successfully (${configSummary.successful}/${configSummary.total})`);
+      
+      // Step 4: Set file permissions
+      console.log('\n🔒 Step 4: Setting file permissions...');
+      const permissionsManager = new PermissionsManager(config);
+      
+      const permissionResults = await permissionsManager.setAllPermissions();
+      const permissionSummary = permissionsManager.getSummary(permissionResults);
+      
+      if (permissionSummary.failed > 0) {
+        console.error(`❌ Permission setting failed for ${permissionSummary.failed} sites. Deployment incomplete.`);
+        process.exit(1);
+      }
+      
+      console.log(`✅ File permissions set successfully (${permissionSummary.successful}/${permissionSummary.total})`);
+      
+      console.log('\n🎉 Deployment Completed Successfully!');
+      console.log('=====================================');
       console.log(`✅ Databases: ${dbSummary.successful}/${dbSummary.total} created`);
       console.log(`✅ WordPress: ${wpSummary.successful}/${wpSummary.total} installed`);
-      console.log('🚧 Configuration: wp-config.php generation pending');
+      console.log(`✅ Configuration: ${configSummary.successful}/${configSummary.total} configured`);
+      console.log(`✅ Permissions: ${permissionSummary.successful}/${permissionSummary.total} secured`);
       
       for (const site of config.sites) {
+        const siteResult = configResults.find(r => r.site_name === site.site_name);
         console.log(`\n📦 Site: ${site.site_name}`);
         console.log(`   Directory: ${site.directory_path} ✅`);
         console.log(`   Database: ${site.database_name} ✅`);
         console.log(`   WordPress: ✅ Installed`);
-        console.log(`   Config: ⏳ Pending wp-config.php generation`);
+        console.log(`   Config: ✅ wp-config.php generated`);
+        console.log(`   Permissions: ✅ File permissions set`);
+        
+        if (siteResult?.wordpress_info) {
+          console.log(`   Site URL: ${siteResult.wordpress_info.site_url}`);
+        }
         
         if (options.verbose) {
           console.log(`   DB User: ${site.db_user}`);
           console.log(`   DB Name: ${site.database_name}`);
+          console.log(`   Admin User: admin`);
+          console.log(`   Admin Email: ${config.wordpress.adminEmail}`);
         }
       }
+      
+      console.log('\n📌 Next Steps:');
+      console.log('   1. Set up web server (Apache/Nginx) configuration');
+      console.log('   2. Your WordPress sites are ready to use!');
+      console.log('   3. Access your sites via the web server to complete WordPress setup');
       
     } catch (error) {
       console.error(`❌ Configuration error: ${error instanceof Error ? error.message : String(error)}`);
@@ -475,6 +520,243 @@ program
     }
   });
 
+program
+  .command('generate-config')
+  .description('Generate wp-config.php files for all sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    console.log('⚙️  WordPress Configuration Generator');
+    console.log('====================================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      if (options.verbose) {
+        console.log(`✅ Configuration loaded: ${config.sites.length} site(s) found`);
+      }
+
+      // Initialize config manager
+      const configManager = new ConfigManager(config);
+
+      // Generate wp-config.php for all sites
+      const results = await configManager.generateAllConfigs();
+
+      // Show summary
+      const summary = configManager.getSummary(results);
+      console.log('\n📊 wp-config.php Generation Summary');
+      console.log('===================================');
+      console.log(`Total Sites: ${summary.total}`);
+      console.log(`✅ Successful: ${summary.successful}`);
+      console.log(`❌ Failed: ${summary.failed}`);
+      console.log(`⏭️  Skipped: ${summary.skipped}`);
+
+      if (summary.failed > 0) {
+        console.log('\n⚠️  Some wp-config.php files failed to generate. Check the errors above.');
+        process.exit(1);
+      } else {
+        console.log('\n🎉 All wp-config.php files generated successfully!');
+        console.log('✅ WordPress sites are ready to use.');
+      }
+      
+    } catch (error) {
+      console.error(`❌ Configuration generation failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('check-config')
+  .description('Check status of wp-config.php files for all sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🔍 wp-config.php Status Checker');
+    console.log('=================================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize config manager
+      const configManager = new ConfigManager(config);
+
+      // Generate report
+      await configManager.checkAllConfigs();
+      
+    } catch (error) {
+      console.error(`❌ Configuration check failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cleanup-config')
+  .description('Remove all wp-config.php files (WARNING: DESTRUCTIVE!)')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    console.log('🧹 wp-config.php Cleanup');
+    console.log('=========================');
+    console.log('⚠️  WARNING: This will permanently delete all wp-config.php files!');
+    
+    if (!options.confirm) {
+      console.log('\n❌ This is a destructive operation. Use --confirm flag to proceed.');
+      console.log('Example: wp-hosting-automation cleanup-config --confirm');
+      process.exit(1);
+    }
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize config manager
+      const configManager = new ConfigManager(config);
+
+      // Cleanup all configurations
+      await configManager.cleanupAllConfigs();
+      
+    } catch (error) {
+      console.error(`❌ Configuration cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('set-permissions')
+  .description('Set appropriate file permissions for all WordPress sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    console.log('🔒 WordPress Permissions Manager');
+    console.log('================================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+      
+      if (options.verbose) {
+        console.log(`✅ Configuration loaded: ${config.sites.length} site(s) found`);
+      }
+
+      // Initialize permissions manager
+      const permissionsManager = new PermissionsManager(config);
+
+      // Set permissions for all sites
+      const results = await permissionsManager.setAllPermissions();
+
+      // Show summary
+      const summary = permissionsManager.getSummary(results);
+      console.log('\n📊 Permissions Setting Summary');
+      console.log('==============================');
+      console.log(`Total Sites: ${summary.total}`);
+      console.log(`✅ Successful: ${summary.successful}`);
+      console.log(`❌ Failed: ${summary.failed}`);
+
+      if (summary.failed > 0) {
+        console.log('\n⚠️  Some sites failed permission setting. Check the errors above.');
+        process.exit(1);
+      } else {
+        console.log('\n🎉 All file permissions set successfully!');
+        console.log('✅ WordPress sites are properly secured.');
+      }
+      
+    } catch (error) {
+      console.error(`❌ Permission setting failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('check-permissions')
+  .description('Check file permissions status for all WordPress sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🔍 WordPress Permissions Checker');
+    console.log('=================================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize permissions manager
+      const permissionsManager = new PermissionsManager(config);
+
+      // Generate report
+      await permissionsManager.checkAllPermissions();
+      
+    } catch (error) {
+      console.error(`❌ Permission check failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fix-permissions')
+  .description('Fix file permissions for all WordPress sites')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .action(async (options) => {
+    console.log('🔧 WordPress Permissions Fixer');
+    console.log('===============================');
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize permissions manager
+      const permissionsManager = new PermissionsManager(config);
+
+      // Fix all permissions
+      await permissionsManager.fixAllPermissions();
+      
+    } catch (error) {
+      console.error(`❌ Permission fix failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Add help examples
 program.on('--help', () => {
   console.log('');
@@ -485,6 +767,10 @@ program.on('--help', () => {
   console.log('  $ wp-hosting-automation check-databases');
   console.log('  $ wp-hosting-automation install-wordpress');
   console.log('  $ wp-hosting-automation check-wordpress');
+  console.log('  $ wp-hosting-automation generate-config');
+  console.log('  $ wp-hosting-automation check-config');
+  console.log('  $ wp-hosting-automation set-permissions');
+  console.log('  $ wp-hosting-automation check-permissions');
   console.log('  $ wp-hosting-automation deploy');
   console.log('  $ wp-hosting-automation deploy -c my-sites.json -v');
   console.log('');
