@@ -64,8 +64,8 @@ export class AppPasswordManager {
     const appName = `${site.site_name}_automation`;
 
     try {
-      // Try to generate via WordPress REST API
-      const appPassword = await this.createAppPasswordViaAPI(siteUrl, username, appName);
+      // Use WP-CLI to generate application password directly
+      const appPassword = await this.createAppPasswordViaWPCLI(site.directory_path, username, appName);
       
       return {
         site_name: site.site_name,
@@ -80,7 +80,7 @@ export class AppPasswordManager {
       // Fallback: Generate a secure random password for manual setup
       const fallbackPassword = this.generateSecurePassword();
       
-      console.log(`   ⚠️  API generation failed, using secure fallback password`);
+      console.log(`   ⚠️  WP-CLI generation failed, using secure fallback password`);
       console.log(`   📝 Manual setup required in WordPress admin`);
       
       return {
@@ -95,35 +95,35 @@ export class AppPasswordManager {
   }
 
   /**
-   * Create application password via WordPress REST API
+   * Create application password via WP-CLI
    */
-  private async createAppPasswordViaAPI(siteUrl: string, username: string, appName: string): Promise<string> {
-    const apiUrl = `${siteUrl}/wp-json/wp/v2/users/me/application-passwords`;
-    
-    // Create basic auth header
-    const authString = Buffer.from(`${username}:${this.config.wordpress.adminPassword}`).toString('base64');
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${authString}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: appName
-      })
-    });
+  private async createAppPasswordViaWPCLI(siteDirectory: string, username: string, appName: string): Promise<string> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json() as any;
-    
-    if (data.password) {
-      return data.password;
-    } else {
-      throw new Error('No password returned from API');
+    try {
+      // Use WP-CLI to create an application password
+      const command = `cd "${siteDirectory}" && wp --allow-root user application-password create ${username} "${appName}" --porcelain`;
+      
+      console.log(`   🔧 Generating app password via WP-CLI...`);
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        console.log(`   ⚠️  WP-CLI warnings: ${stderr}`);
+      }
+      
+      const appPassword = stdout.trim();
+      
+      if (appPassword && appPassword.length > 10) {
+        console.log(`   ✅ Application password generated successfully`);
+        return appPassword;
+      } else {
+        throw new Error('Invalid application password returned from WP-CLI');
+      }
+      
+    } catch (error: any) {
+      throw new Error(`WP-CLI application password creation failed: ${error.message}`);
     }
   }
 
@@ -150,15 +150,30 @@ export class AppPasswordManager {
    * Generate site URL based on directory path
    */
   private generateSiteUrl(targetDir: string): string {
-    // Try to determine the site URL based on directory structure
-    if (targetDir.includes('/var/www/html/')) {
+    // Extract domain from directory path
+    if (targetDir.includes('/www/wwwroot/')) {
+      // Remote server structure: /www/wwwroot/domain.com
+      const sitePath = targetDir.replace('/www/wwwroot/', '');
+      return `https://${sitePath}`;
+    } else if (targetDir.includes('/var/www/html/')) {
+      // Traditional Apache structure
       const sitePath = targetDir.replace('/var/www/html/', '');
-      return `http://localhost/${sitePath}`;
+      return `https://${sitePath}`;
     } else if (targetDir.includes('/var/www/')) {
+      // Nginx structure
       const sitePath = targetDir.replace('/var/www/', '');
-      return `http://localhost/${sitePath}`;
+      return `https://${sitePath}`;
     } else {
-      // Local development
+      // Extract domain from path if it looks like a domain
+      const pathParts = targetDir.split('/');
+      const lastPart = pathParts[pathParts.length - 1];
+      
+      // Check if last part looks like a domain
+      if (lastPart.includes('.') && !lastPart.includes(' ')) {
+        return `https://${lastPart}`;
+      }
+      
+      // Local development fallback
       return `http://localhost:8080`;
     }
   }
