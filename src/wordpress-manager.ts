@@ -272,18 +272,37 @@ export class WordPressManager {
     console.log(`   📦 Extracting WordPress...`);
 
     try {
-      // Create read stream from ZIP file
-      const zipStream = fs.createReadStream(zipPath);
-      
       // Extract to temporary directory first
       const tempExtractDir = path.join(targetDir, 'temp-extract');
       await fs.ensureDir(tempExtractDir);
 
-      // Extract the ZIP file
-      await pipeline(
-        zipStream,
-        Extract({ path: tempExtractDir })
-      );
+      // Use a more robust extraction method with proper error handling
+      await new Promise<void>((resolve, reject) => {
+        const readStream = fs.createReadStream(zipPath);
+        const extractStream = Extract({ path: tempExtractDir });
+
+        readStream.pipe(extractStream);
+
+        extractStream.on('close', () => {
+          console.log(`   📦 ZIP extraction completed`);
+          resolve();
+        });
+
+        extractStream.on('error', (error) => {
+          console.error(`   ❌ Extraction error: ${error.message}`);
+          reject(error);
+        });
+
+        readStream.on('error', (error) => {
+          console.error(`   ❌ Read error: ${error.message}`);
+          reject(error);
+        });
+
+        // Add timeout for extraction
+        setTimeout(() => {
+          reject(new Error('ZIP extraction timeout after 60 seconds'));
+        }, 60000);
+      });
 
       // WordPress ZIP contains a 'wordpress' folder, we need to move its contents
       const wordpressDir = path.join(tempExtractDir, 'wordpress');
@@ -294,14 +313,17 @@ export class WordPressManager {
 
       // Move WordPress files to target directory
       const files = await fs.readdir(wordpressDir);
+      console.log(`   📁 Moving ${files.length} WordPress files...`);
+      
       for (const file of files) {
         const srcPath = path.join(wordpressDir, file);
         const destPath = path.join(targetDir, file);
         await fs.move(srcPath, destPath);
       }
 
-      // Clean up temporary extraction directory
+      // Clean up temporary extraction directory and ZIP file
       await fs.remove(tempExtractDir);
+      await fs.remove(zipPath);
 
       console.log(`   ✅ WordPress extracted successfully`);
 
