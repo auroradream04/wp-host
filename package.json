@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "deploy": "npm run build && node dist/index.js"
   },
   "repository": {
     "type": "git",
@@ -20,9 +21,16 @@
   "homepage": "https://github.com/auroradream04/wp-hosting-automation#readme",
   "description": "",
   "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
     "@types/node": "^24.0.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "fs-extra": "^11.3.0",
+    "mysql2": "^3.14.1",
+    "node-fetch": "^3.3.2"
   }
 }

@@ -1,0 +1,28 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "adminUser": "root",
+    "adminPassword": "your_mysql_password"
+  },
+  "sites": [
+    {
+      "site_name": "client1_site",
+      "directory_path": "/var/www/client1",
+      "database_name": "client1_wp_db",
+      "db_user": "client1_user"
+    },
+    {
+      "site_name": "client2_site", 
+      "directory_path": "/var/www/client2",
+      "database_name": "client2_wp_db",
+      "db_user": "client2_user"
+    },
+    {
+      "site_name": "test_site",
+      "directory_path": "./test_wordpress",
+      "database_name": "test_wp_db",
+      "db_user": "test_user"
+    }
+  ]
+} 

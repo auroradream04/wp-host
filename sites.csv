@@ -1,0 +1,4 @@
+site_name,directory_path,database_name,db_user
+client1_site,/var/www/client1,client1_wp_db,client1_user
+client2_site,/var/www/client2,client2_wp_db,client2_user
+test_site,./test_wordpress,test_wp_db,test_user 
