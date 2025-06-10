@@ -1,0 +1,205 @@
+<context>
+# Overview  
+WordPress Hosting Automation Platform is a comprehensive solution that automates the deployment and management of multiple WordPress instances with dedicated MySQL databases. The platform solves the complex problem of manually setting up, configuring, and managing multiple WordPress sites by providing an automated infrastructure that can spin up new WordPress instances with isolated MySQL databases on demand.
+
+This platform is designed for web developers, agencies, hosting providers, and businesses that need to manage multiple WordPress sites efficiently. It eliminates the tedious manual setup process, reduces human error, and provides a scalable solution for WordPress hosting at scale.
+
+The value proposition includes rapid deployment times (minutes instead of hours), consistent configurations, automated database management, secure credential storage, and centralized management of multiple WordPress instances.
+
+# Core Features  
+## Database Management System
+- **Automated MySQL Instance Creation**: Programmatically creates isolated MySQL database instances for each WordPress site
+- **Credential Management**: Securely stores and manages database usernames, passwords, and connection details
+- **Database Isolation**: Ensures each WordPress site has its own dedicated database for security and performance
+
+## WordPress Instance Management
+- **Automated WordPress Deployment**: Downloads, configures, and deploys fresh WordPress installations
+- **Database Connection Configuration**: Automatically configures wp-config.php with the appropriate database credentials
+- **Multi-site Support**: Manages multiple WordPress instances simultaneously with unique configurations
+
+## Security & Access Control
+- **Secure Credential Storage**: Encrypts and stores sensitive database credentials and WordPress admin credentials
+- **Access Management**: Controls who can create, modify, or delete WordPress instances
+- **Environment Isolation**: Ensures each WordPress instance operates in its own secure environment
+
+## Management Dashboard
+- **Instance Overview**: Provides a centralized view of all WordPress instances and their status
+- **Database Monitoring**: Tracks database usage, connections, and performance metrics
+- **Deployment History**: Maintains logs of all deployments and configuration changes
+
+# User Experience  
+## User Personas
+- **Web Developer**: Needs to quickly spin up development/staging environments for client projects
+- **Agency Owner**: Manages multiple client WordPress sites and needs efficient deployment workflows
+- **Hosting Provider**: Offers managed WordPress hosting services to customers
+- **DevOps Engineer**: Responsible for maintaining and scaling WordPress infrastructure
+
+## Key User Flows
+1. **New WordPress Instance Creation**:
+   - User accesses management dashboard
+   - Fills out instance creation form (site name, admin credentials, domain)
+   - System automatically creates MySQL database and WordPress instance
+   - User receives access credentials and site URL
+
+2. **Instance Management**:
+   - User views dashboard with all active instances
+   - Can start/stop, backup, or delete instances
+   - Access database credentials and WordPress admin panels
+   - Monitor resource usage and performance
+
+3. **Bulk Operations**:
+   - User can create multiple instances from a template
+   - Bulk backup or update operations across multiple sites
+   - Mass configuration changes
+
+## UI/UX Considerations
+- Clean, intuitive web-based dashboard
+- Real-time status updates during deployment
+- Mobile-responsive design for on-the-go management
+- Clear visual indicators for instance health and status
+- One-click access to WordPress admin panels and database tools
+</context>
+<PRD>
+# Technical Architecture  
+## System Components
+- **Backend API Server**: Node.js/TypeScript application handling all business logic
+- **Database Layer**: 
+  - Primary PostgreSQL database for storing instance metadata, credentials, and configurations
+  - Multiple MySQL instances for WordPress sites
+- **WordPress Management Engine**: Automated WordPress download, configuration, and deployment system
+- **Web Dashboard**: React-based frontend for user interaction
+- **File System Manager**: Handles WordPress file storage and organization
+- **Security Module**: Encryption/decryption of sensitive credentials
+
+## Data Models
+- **WordPressInstance**: id, name, domain, status, created_at, mysql_database_id, admin_credentials
+- **MySQLDatabase**: id, database_name, username, password (encrypted), host, port, instance_id
+- **User**: id, username, email, role, permissions
+- **DeploymentLog**: id, instance_id, action, status, timestamp, details
+
+## APIs and Integrations
+- **WordPress Core API**: For downloading and managing WordPress installations
+- **MySQL Management API**: For creating databases, users, and managing permissions
+- **File System API**: For managing WordPress files and uploads
+- **Monitoring API**: For health checks and performance metrics
+
+## Infrastructure Requirements
+- **Server Environment**: Linux-based server with Docker support
+- **Database Servers**: PostgreSQL for metadata, MySQL server for WordPress databases
+- **Web Server**: Nginx for serving WordPress sites and API endpoints
+- **Storage**: Sufficient disk space for multiple WordPress installations
+- **Network**: Proper DNS configuration and SSL certificate management
+
+# Development Roadmap  
+## Phase 1: Core Infrastructure (MVP)
+- Basic Node.js/TypeScript API server setup
+- PostgreSQL database setup with core data models
+- MySQL database creation and management functionality
+- Basic credential encryption/storage system
+- Simple REST API for database operations
+- Command-line interface for testing database operations
+
+## Phase 2: WordPress Automation Engine
+- WordPress download and extraction system
+- Automated wp-config.php generation and configuration
+- Database connection establishment and testing
+- Basic WordPress instance lifecycle management (create/delete)
+- File system organization for multiple WordPress instances
+- Basic logging and error handling
+
+## Phase 3: Web Dashboard Frontend
+- React-based dashboard application
+- Instance creation and management UI
+- Database credential viewing (with proper security)
+- Real-time status updates and deployment progress
+- Basic user authentication and session management
+- Responsive design for mobile access
+
+## Phase 4: Advanced Management Features
+- Bulk operations (create multiple instances, bulk updates)
+- WordPress plugin and theme management
+- Automated backup and restore functionality
+- Performance monitoring and resource usage tracking
+- Advanced user roles and permissions system
+- API documentation and external integrations
+
+## Phase 5: Production Readiness & Scaling
+- Docker containerization for easy deployment
+- Load balancing and high availability setup
+- Advanced security features (2FA, audit logs)
+- Automated SSL certificate management
+- Monitoring and alerting system
+- Documentation and deployment guides
+
+# Logical Dependency Chain
+## Foundation Layer (Must be built first)
+1. **Database Infrastructure**: PostgreSQL setup and core data models
+2. **MySQL Management**: Ability to create and manage MySQL databases programmatically
+3. **Credential Security**: Encryption system for storing sensitive data
+4. **Basic API Framework**: Core Node.js server with essential endpoints
+
+## Core Functionality Layer (Build upon foundation)
+5. **WordPress Download System**: Automated WordPress acquisition and extraction
+6. **Configuration Engine**: wp-config.php generation and database connection setup
+7. **Instance Management**: Create, configure, and deploy WordPress instances
+8. **File System Organization**: Proper directory structure and file management
+
+## User Interface Layer (Requires core functionality)
+9. **Basic Web Dashboard**: Simple UI for creating and viewing instances
+10. **Authentication System**: User login and session management
+11. **Real-time Updates**: Live status updates during deployment processes
+
+## Advanced Features Layer (Enhancement of existing functionality)
+12. **Bulk Operations**: Multiple instance management capabilities
+13. **Monitoring System**: Performance tracking and health checks
+14. **Backup/Restore**: Data protection and recovery features
+15. **Advanced Security**: Enhanced authentication and audit capabilities
+
+# Risks and Mitigations  
+## Technical Challenges
+- **Risk**: MySQL instance conflicts and resource management
+- **Mitigation**: Implement proper port management and resource allocation strategies
+
+- **Risk**: WordPress configuration complexity and version compatibility
+- **Mitigation**: Use standardized WordPress configurations and maintain compatibility matrices
+
+- **Risk**: Security vulnerabilities in credential storage
+- **Mitigation**: Implement industry-standard encryption and follow security best practices
+
+## MVP Definition and Scope
+- **Risk**: Feature creep leading to delayed MVP delivery
+- **Mitigation**: Focus strictly on core functionality: create MySQL database + deploy WordPress + connect them together
+
+- **Risk**: Over-engineering the initial solution
+- **Mitigation**: Start with simple file-based configurations before building complex management systems
+
+## Resource Constraints
+- **Risk**: Server resource limitations affecting performance
+- **Mitigation**: Implement resource monitoring and automatic scaling capabilities
+
+- **Risk**: Development complexity requiring specialized knowledge
+- **Mitigation**: Break down complex tasks into smaller, manageable components with clear documentation
+
+# Appendix  
+## Technical Specifications
+- **Node.js Version**: 18+ with TypeScript support
+- **Database**: PostgreSQL 14+ for metadata, MySQL 8+ for WordPress instances
+- **Frontend**: React 18+ with TypeScript
+- **Authentication**: JWT-based session management
+- **Encryption**: AES-256 for credential storage
+- **File Storage**: Local file system with future cloud storage support
+
+## Research Findings
+- WordPress requires specific PHP extensions and configurations
+- MySQL user management requires careful privilege assignment
+- File permissions are critical for WordPress security
+- Automated deployment reduces setup time from hours to minutes
+- Proper database isolation prevents cross-site data leaks
+
+## Success Metrics
+- Deployment time: < 5 minutes per WordPress instance
+- System uptime: 99.9% availability
+- User satisfaction: Intuitive interface requiring minimal training
+- Scalability: Support for 100+ concurrent WordPress instances
+- Security: Zero credential exposure incidents
+</PRD> 
