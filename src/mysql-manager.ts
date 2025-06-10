@@ -162,8 +162,8 @@ export class MySQLManager {
       }
 
       await this.connection.execute(
-        `CREATE USER ?@? IDENTIFIED BY ?`,
-        [username, host, password]
+        `CREATE USER \`${username}\`@\`${host}\` IDENTIFIED BY ?`,
+        [password]
       );
       console.log(`✅ User ${username}@${host} created successfully`);
       
@@ -185,8 +185,7 @@ export class MySQLManager {
       console.log(`🔑 Granting privileges on ${databaseName} to ${username}@${host}`);
       
       await this.connection.execute(
-        `GRANT ALL PRIVILEGES ON \`${databaseName}\`.* TO ?@?`,
-        [username, host]
+        `GRANT ALL PRIVILEGES ON \`${databaseName}\`.* TO \`${username}\`@\`${host}\``
       );
       
       // Flush privileges to ensure they take effect immediately
