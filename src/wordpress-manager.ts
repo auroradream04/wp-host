@@ -420,15 +420,10 @@ export class WordPressManager {
         return;
       }
 
-      console.log(`   📊 Creating WordPress database tables...`);
+      console.log(`   🚀 Running WordPress installation automatically...`);
 
-      // Create WordPress tables using the WordPress schema
-      await this.createWordPressTables(connection);
-
-      console.log(`   👤 Setting up WordPress via native installation...`);
-
-      // Use WordPress's built-in installation instead of manual user creation
-      await this.runWordPressInstallation(site, siteUrl);
+      // Use WordPress's installation process with proper database connection
+      await this.runWordPressInstallationFixed(site, siteUrl);
 
       // Verify that WordPress recognizes this as a valid installation
       console.log(`   🔍 Verifying WordPress installation detection...`);
@@ -481,17 +476,17 @@ export class WordPressManager {
 
       console.log(`   ✅ WordPress setup completed successfully`);
       console.log(`   🌐 Site URL: ${siteUrl}`);
-      console.log(`   👤 Admin Login: ${siteUrl}/wp-admin/`);
-      console.log(`   📧 Username: ${site.wordpress_admin_username || 'admin'}`);
-      console.log(`   🔑 Password: ${this.config.wordpress.adminPassword}`);
+      console.log(`   👤 Visit: ${siteUrl}/wp-admin/install.php to complete setup`);
+      console.log(`   📧 Use Email: ${this.config.wordpress.adminEmail}`);
+      console.log(`   👤 Use Username: ${site.wordpress_admin_username || 'admin'}`);
+      console.log(`   🔑 Use Password: ${this.config.wordpress.adminPassword}`);
 
     } catch (error) {
-      console.log(`   ⚠️  WordPress setup automation failed, manual setup may be required`);
+      console.log(`   ⚠️  WordPress setup automation failed`);
       console.log(`   🌐 Visit: ${siteUrl}/wp-admin/install.php to complete setup manually`);
-      console.log(`   📝 Site Title: ${site.wordpress_site_title || 'WordPress Site'}`);
-      console.log(`   👤 Username: ${site.wordpress_admin_username || 'admin'}`);
-      console.log(`   🔑 Password: ${this.config.wordpress.adminPassword}`);
-      console.log(`   📧 Email: ${this.config.wordpress.adminEmail}`);
+      console.log(`   📧 Use Email: ${this.config.wordpress.adminEmail}`);
+      console.log(`   👤 Use Username: ${site.wordpress_admin_username || 'admin'}`);
+      console.log(`   🔑 Use Password: ${this.config.wordpress.adminPassword}`);
       console.log(`   ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -1276,6 +1271,89 @@ define('WP_SITEURL', '${siteUrl}');
     } else {
       await fs.ensureDir(uploadsPath);
       await fs.chmod(uploadsPath, 0o755);
+    }
+  }
+
+  /**
+   * Run WordPress's native installation process with proper database handling
+   */
+  private async runWordPressInstallationFixed(site: SiteConfig, siteUrl: string): Promise<void> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+
+    try {
+      const adminUsername = site.wordpress_admin_username || 'admin';
+      const adminPassword = this.config.wordpress.adminPassword;
+      const adminEmail = this.config.wordpress.adminEmail;
+      const siteTitle = site.wordpress_site_title || 'WordPress Site';
+
+      // Debug output to verify credentials
+      console.log(`   📧 Using Admin Email: ${adminEmail}`);
+      console.log(`   👤 Using Admin Username: ${adminUsername}`);
+      console.log(`   🔑 Using Admin Password: ${adminPassword.substring(0, 8)}...`);
+      console.log(`   🏷️  Using Site Title: ${siteTitle}`);
+
+      // Create a more robust PHP script that handles the installation properly
+      const phpScript = `<?php
+// Set up WordPress environment
+define('WP_INSTALLING', true);
+
+// Load WordPress configuration
+require_once '${site.directory_path}/wp-config.php';
+
+// Load WordPress core
+require_once '${site.directory_path}/wp-settings.php';
+
+// Now WordPress is fully loaded, run the installation
+if (!is_blog_installed()) {
+    // Install WordPress with your credentials
+    $result = wp_install(
+        '${siteTitle.replace(/'/g, "\\'")}',
+        '${adminUsername.replace(/'/g, "\\'")}', 
+        '${adminEmail.replace(/'/g, "\\'")}',
+        true, // blog_public
+        '', // deprecated parameter
+        '${adminPassword.replace(/'/g, "\\'")}'
+    );
+    
+    if (is_wp_error($result)) {
+        echo 'ERROR: ' . $result->get_error_message();
+        exit(1);
+    } else {
+        echo 'SUCCESS: WordPress installation completed with user ID: ' . $result['user_id'];
+        exit(0);
+    }
+} else {
+    echo 'SUCCESS: WordPress already installed';
+    exit(0);
+}
+?>`;
+
+      const tempPhpFile = path.join(site.directory_path, 'temp_install.php');
+      await fs.writeFile(tempPhpFile, phpScript);
+      
+      // Execute WordPress installation with better error handling
+      console.log(`   🔧 Installing WordPress with your credentials...`);
+      const { stdout, stderr } = await execAsync(`cd ${site.directory_path} && php temp_install.php 2>&1`);
+      
+      // Clean up temp file
+      await fs.remove(tempPhpFile);
+      
+      console.log(`   📝 Installation output: ${stdout.trim()}`);
+      
+      if (stdout.includes('SUCCESS')) {
+        console.log(`   ✅ WordPress installation completed successfully!`);
+        console.log(`   🎉 Admin user created with your credentials`);
+        console.log(`   🌐 You can now login at: ${siteUrl}/wp-admin/`);
+      } else {
+        throw new Error(`Installation failed: ${stdout} ${stderr}`);
+      }
+      
+    } catch (error) {
+      console.log(`   ❌ Automated installation failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`   🔧 Falling back to manual installation process...`);
+      throw error; // Re-throw to trigger fallback
     }
   }
 
