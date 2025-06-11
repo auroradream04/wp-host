@@ -729,7 +729,7 @@ export class WordPressManager {
       ['links_updated_date_format', 'F j, Y g:i a'],
       ['comment_moderation', '0'],
       ['moderation_notify', '1'],
-      ['permalink_structure', '/%year%/%monthnum%/%day%/%postname%/'],
+      ['permalink_structure', '/%postname%/'],
       ['rewrite_rules', ''],
       ['hack_file', '0'],
       ['blog_charset', 'UTF-8'],
@@ -1030,6 +1030,154 @@ export class WordPressManager {
     }
 
     console.log('\n✅ Cleanup completed.');
+  }
+
+  /**
+   * Update permalink structure for all sites
+   */
+  async updateAllPermalinks(newStructure: string = '/%postname%/'): Promise<DeploymentResult[]> {
+    console.log('\n🔗 Updating Permalink Structure for All Sites');
+    console.log('==============================================');
+    console.log(`📝 New permalink structure: ${newStructure}`);
+    
+    const results: DeploymentResult[] = [];
+    
+    for (let i = 0; i < this.config.sites.length; i++) {
+      const site = this.config.sites[i];
+      console.log(`\n${i + 1}. ${site.site_name}`);
+      
+      try {
+        const result = await this.updateSitePermalinks(site, newStructure);
+        results.push(result);
+        
+        if (result.status === 'success') {
+          console.log(`   ✅ Permalinks updated successfully`);
+        } else {
+          console.log(`   ⚠️  Update skipped`);
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log(`   ❌ Failed: ${errorMessage}`);
+        
+        results.push({
+          site_name: site.site_name,
+          status: 'failed',
+          errors: [errorMessage]
+        });
+      }
+    }
+    
+    // Show summary
+    const summary = this.getSummary(results);
+    console.log('\n📊 Permalink Update Summary');
+    console.log('===========================');
+    console.log(`Total Sites: ${summary.total}`);
+    console.log(`✅ Updated: ${summary.successful}`);
+    console.log(`⚠️  Skipped: ${summary.skipped}`);
+    console.log(`❌ Failed: ${summary.failed}`);
+    
+    return results;
+  }
+
+  /**
+   * Update permalink structure for a single site
+   */
+  async updateSitePermalinks(site: SiteConfig, newStructure: string = '/%postname%/'): Promise<DeploymentResult> {
+    const targetDir = path.resolve(site.directory_path);
+    console.log(`   Target: ${targetDir}`);
+
+    try {
+      // Step 1: Verify WordPress installation exists
+      if (!await fs.pathExists(path.join(targetDir, 'wp-includes'))) {
+        return {
+          site_name: site.site_name,
+          status: 'skipped',
+          errors: ['WordPress not installed']
+        };
+      }
+
+      // Step 2: Check if wp-config.php exists
+      const wpConfigPath = path.join(targetDir, 'wp-config.php');
+      if (!await fs.pathExists(wpConfigPath)) {
+        return {
+          site_name: site.site_name,
+          status: 'skipped',
+          errors: ['wp-config.php not found']
+        };
+      }
+
+      // Step 3: Get database connection details from wp-config.php
+      const dbConfig = await this.extractDatabaseConfigFromWpConfig(wpConfigPath);
+      
+      // Step 4: Connect to database and update permalink structure
+      const mysql = require('mysql2/promise');
+      const connection = await mysql.createConnection({
+        host: dbConfig.host,
+        user: dbConfig.user,
+        password: dbConfig.password,
+        database: dbConfig.database
+      });
+
+      try {
+        // Update the permalink_structure option
+        console.log(`   🔗 Setting permalink structure to: ${newStructure}`);
+        
+        const [result] = await connection.execute(
+          'UPDATE wp_options SET option_value = ? WHERE option_name = ?',
+          [newStructure, 'permalink_structure']
+        );
+
+        // Clear rewrite rules to force regeneration
+        await connection.execute(
+          'UPDATE wp_options SET option_value = ? WHERE option_name = ?',
+          ['', 'rewrite_rules']
+        );
+
+        console.log(`   🔄 Cleared rewrite rules for regeneration`);
+
+        return {
+          site_name: site.site_name,
+          status: 'success',
+          wordpress_path: targetDir
+        };
+
+      } finally {
+        await connection.end();
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Permalink update failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Extract database configuration from wp-config.php
+   */
+  private async extractDatabaseConfigFromWpConfig(wpConfigPath: string): Promise<{
+    host: string;
+    user: string;
+    password: string;
+    database: string;
+  }> {
+    const wpConfigContent = await fs.readFile(wpConfigPath, 'utf8');
+    
+    const extractDefine = (name: string): string => {
+      const regex = new RegExp(`define\\s*\\(\\s*['"]${name}['"]\\s*,\\s*['"]([^'"]+)['"]\\s*\\)`, 'i');
+      const match = wpConfigContent.match(regex);
+      if (!match) {
+        throw new Error(`Could not find ${name} in wp-config.php`);
+      }
+      return match[1];
+    };
+
+    return {
+      host: extractDefine('DB_HOST'),
+      user: extractDefine('DB_USER'),
+      password: extractDefine('DB_PASSWORD'),
+      database: extractDefine('DB_NAME')
+    };
   }
 
   /**

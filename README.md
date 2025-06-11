@@ -136,7 +136,35 @@ wp-host generate-app-passwords -c sites.csv
 
 # Export deployment information
 wp-host export-deployment -c sites.csv --include-app-passwords
+
+# Update existing sites (permalink structure)
+wp-host update-permalinks --confirm
 ```
+
+## 🔄 Updating Existing Sites
+
+### Permalink Structure Update
+If you have existing WordPress sites with "Plain" permalinks that need wp-json API access:
+
+```bash
+# Update all sites to use "Post name" permalinks (/%postname%/)
+wp-host update-permalinks --confirm
+
+# Use custom permalink structure
+wp-host update-permalinks --structure="/%year%/%monthnum%/%postname%/" --confirm
+```
+
+**Why this matters:**
+- WordPress wp-json API requires pretty permalinks to function
+- Plain permalinks (/?p=123) break REST API endpoints
+- Post name structure (/%postname%/) enables full API functionality
+- All new deployments automatically use Post name structure
+
+**What it does:**
+- Updates permalink_structure in wp_options table for each site
+- Clears rewrite rules to force regeneration
+- Only affects existing WordPress installations
+- Skips sites without WordPress or missing wp-config.php
 
 ## 📈 Deployment Workflow
 
