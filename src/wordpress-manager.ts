@@ -1235,6 +1235,145 @@ define('WP_SITEURL', '${siteUrl}');
   }
 
   /**
+   * Update permalink structure for all sites using WP-CLI
+   */
+  async updateAllPermalinks(newStructure: string = '/%postname%/'): Promise<DeploymentResult[]> {
+    console.log('\n🔗 Updating Permalink Structure for All Sites');
+    console.log('==============================================');
+    console.log(`📝 New permalink structure: ${newStructure}`);
+    
+    const results: DeploymentResult[] = [];
+    
+    // Ensure WP-CLI is available
+    try {
+      const wpCommand = await this.ensureWPCLIInstalled();
+      this.wpCliCommand = wpCommand;
+    } catch (error) {
+      console.error('❌ WP-CLI is required for permalink updates but could not be installed');
+      throw error;
+    }
+    
+    for (let i = 0; i < this.config.sites.length; i++) {
+      const site = this.config.sites[i];
+      console.log(`\n${i + 1}. ${site.site_name}`);
+      
+      try {
+        const result = await this.updateSitePermalinks(site, newStructure);
+        results.push(result);
+        
+        if (result.status === 'success') {
+          console.log(`   ✅ Permalinks updated successfully`);
+        } else {
+          console.log(`   ⚠️  Update skipped: ${result.errors?.join(', ')}`);
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log(`   ❌ Failed: ${errorMessage}`);
+        
+        results.push({
+          site_name: site.site_name,
+          status: 'failed',
+          errors: [errorMessage]
+        });
+      }
+    }
+    
+    // Show summary
+    const summary = this.getSummary(results);
+    console.log('\n📊 Permalink Update Summary');
+    console.log('===========================');
+    console.log(`Total Sites: ${summary.total}`);
+    console.log(`✅ Updated: ${summary.successful}`);
+    console.log(`⚠️  Skipped: ${summary.skipped}`);
+    console.log(`❌ Failed: ${summary.failed}`);
+    
+    return results;
+  }
+
+  /**
+   * Update permalink structure for a single site using WP-CLI
+   */
+  async updateSitePermalinks(site: SiteConfig, newStructure: string = '/%postname%/'): Promise<DeploymentResult> {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const targetDir = path.resolve(site.directory_path);
+    console.log(`   Target: ${targetDir}`);
+
+    try {
+      // Step 1: Verify WordPress installation exists
+      if (!await fs.pathExists(path.join(targetDir, 'wp-includes'))) {
+        return {
+          site_name: site.site_name,
+          status: 'skipped',
+          errors: ['WordPress not installed']
+        };
+      }
+
+      // Step 2: Check if wp-config.php exists
+      const wpConfigPath = path.join(targetDir, 'wp-config.php');
+      if (!await fs.pathExists(wpConfigPath)) {
+        return {
+          site_name: site.site_name,
+          status: 'skipped',
+          errors: ['wp-config.php not found']
+        };
+      }
+
+      // Step 3: Check if WordPress is properly installed (can connect to DB)
+      console.log(`   🔍 Checking WordPress installation...`);
+      const checkCommand = `cd "${targetDir}" && ${this.wpCliCommand} core is-installed`;
+      
+      try {
+        await execAsync(checkCommand);
+      } catch (error) {
+        return {
+          site_name: site.site_name,
+          status: 'skipped',
+          errors: ['WordPress is not properly installed or configured']
+        };
+      }
+
+      // Step 4: Update permalink structure using WP-CLI
+      console.log(`   🔗 Setting permalink structure to: ${newStructure}`);
+      
+      const updateCommand = `cd "${targetDir}" && ${this.wpCliCommand} rewrite structure "${newStructure}"`;
+      const { stdout, stderr } = await execAsync(updateCommand);
+      
+      if (stderr && !stderr.includes('Success:')) {
+        console.log(`   ⚠️  WP-CLI warning: ${stderr}`);
+      }
+
+      // Step 5: Flush rewrite rules to ensure changes take effect
+      console.log(`   🔄 Flushing rewrite rules...`);
+      const flushCommand = `cd "${targetDir}" && ${this.wpCliCommand} rewrite flush`;
+      await execAsync(flushCommand);
+
+      // Step 6: Verify the change was applied
+      const verifyCommand = `cd "${targetDir}" && ${this.wpCliCommand} option get permalink_structure`;
+      const { stdout: currentStructure } = await execAsync(verifyCommand);
+      
+      if (currentStructure.trim() === newStructure) {
+        console.log(`   ✅ Permalink structure verified: ${newStructure}`);
+      } else {
+        console.log(`   ⚠️  Structure may not have updated correctly`);
+      }
+
+      return {
+        site_name: site.site_name,
+        status: 'success',
+        wordpress_path: targetDir
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Permalink update failed: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Run WordPress's native installation process with proper database handling
    */
   private async installWordPressWithWPCLI(site: SiteConfig, siteUrl: string): Promise<void> {

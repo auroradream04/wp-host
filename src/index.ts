@@ -938,6 +938,67 @@ program
     }
   });
 
+program
+  .command('update-permalinks')
+  .description('Update permalink structure for existing WordPress sites (for wp-json API support)')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-s, --structure <structure>', 'Permalink structure pattern', '/%postname%/')
+  .option('--confirm', 'Skip confirmation prompt')
+  .action(async (options) => {
+    console.log('🔗 WordPress Permalink Structure Updater');
+    console.log('========================================');
+    console.log(`📝 New structure: ${options.structure}`);
+    
+    if (!options.confirm) {
+      console.log('\n⚠️  This will update the permalink structure for all sites in your configuration.');
+      console.log('   This operation is designed for existing WordPress installations.');
+      console.log('   It uses WP-CLI to safely update permalinks and flush rewrite rules.');
+      console.log('\n❌ Use --confirm flag to proceed.');
+      console.log(`Example: wp-hosting-automation update-permalinks --confirm`);
+      console.log(`Custom: wp-hosting-automation update-permalinks --structure="/%year%/%postname%/" --confirm`);
+      process.exit(1);
+    }
+    
+    const configPath = path.resolve(options.config);
+    
+    if (!await fs.pathExists(configPath)) {
+      console.error(`❌ Configuration file not found: ${configPath}`);
+      process.exit(1);
+    }
+
+    try {
+      console.log(`📋 Reading configuration from: ${configPath}`);
+      const config = await ConfigParser.parseConfig(configPath);
+
+      // Initialize WordPress manager
+      const wordpressManager = new WordPressManager(config);
+
+      // Update permalinks for all sites
+      const results = await wordpressManager.updateAllPermalinks(options.structure);
+      
+      const summary = wordpressManager.getSummary(results);
+      
+      if (summary.failed > 0) {
+        console.log('\n⚠️  Some sites failed to update. Check the errors above.');
+        console.log('💡 Note: This only works on existing WordPress installations with WP-CLI.');
+        process.exit(1);
+      } else if (summary.successful === 0) {
+        console.log('\n⚠️  No sites were updated.');
+        console.log('💡 Make sure your sites have WordPress installed and configured.');
+        process.exit(1);
+      } else {
+        console.log('\n🎉 Permalink structure updated successfully!');
+        console.log(`✅ ${summary.successful} sites now use: ${options.structure}`);
+        console.log('\n💡 Your wp-json API endpoints should now work properly.');
+        console.log('   Example: https://yoursite.com/wp-json/wp/v2/posts');
+      }
+      
+    } catch (error) {
+      console.error(`❌ Permalink update failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Add help examples
 program.on('--help', () => {
   console.log('');
@@ -964,6 +1025,10 @@ program.on('--help', () => {
   console.log('  $ wp-hosting-automation generate-app-passwords');
   console.log('  $ wp-hosting-automation export-deployment --include-app-passwords');
   console.log('  $ wp-hosting-automation export-deployment -o my-deployment.csv');
+  console.log('');
+  console.log('  # Update existing sites');
+  console.log('  $ wp-hosting-automation update-permalinks --confirm');
+  console.log('  $ wp-hosting-automation update-permalinks --structure="/%year%/%postname%/" --confirm');
   console.log('');
   console.log('  # Status checking');
   console.log('  $ wp-hosting-automation check-databases');
