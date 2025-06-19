@@ -941,7 +941,7 @@ program
 program
   .command('update-permalinks')
   .description('Update permalink structure for existing WordPress sites (for wp-json API support)')
-  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)', 'sites.json')
+  .option('-c, --config <file>', 'Configuration file path (JSON or CSV)')
   .option('-s, --structure <structure>', 'Permalink structure pattern', '/%postname%/')
   .option('--confirm', 'Skip confirmation prompt')
   .action(async (options) => {
@@ -949,26 +949,68 @@ program
     console.log('========================================');
     console.log(`📝 New structure: ${options.structure}`);
     
-    if (!options.confirm) {
-      console.log('\n⚠️  This will update the permalink structure for all sites in your configuration.');
-      console.log('   This operation is designed for existing WordPress installations.');
-      console.log('   It uses WP-CLI to safely update permalinks and flush rewrite rules.');
-      console.log('\n❌ Use --confirm flag to proceed.');
-      console.log(`Example: wp-hosting-automation update-permalinks --confirm`);
-      console.log(`Custom: wp-hosting-automation update-permalinks --structure="/%year%/%postname%/" --confirm`);
-      process.exit(1);
+    // Auto-detect configuration file if not specified
+    let configPath: string;
+    if (options.config) {
+      configPath = path.resolve(options.config);
+    } else {
+      // CSV-first approach: look for CSV files first, then JSON
+      const possibleFiles = ['sites.csv', 'template.csv', 'sites.json'];
+      let foundFile = null;
+      
+      for (const file of possibleFiles) {
+        if (await fs.pathExists(file)) {
+          foundFile = file;
+          break;
+        }
+      }
+      
+      if (!foundFile) {
+        console.error('❌ No configuration file found.');
+        console.error('💡 Please create sites.csv or specify a file with -c flag');
+        console.error('   Example: wp-host update-permalinks -c my-sites.csv');
+        process.exit(1);
+      }
+      
+      configPath = path.resolve(foundFile);
     }
-    
-    const configPath = path.resolve(options.config);
     
     if (!await fs.pathExists(configPath)) {
       console.error(`❌ Configuration file not found: ${configPath}`);
+      console.error('💡 Make sure the file exists or use -c flag to specify a different file');
       process.exit(1);
     }
 
     try {
       console.log(`📋 Reading configuration from: ${configPath}`);
       const config = await ConfigParser.parseConfig(configPath);
+
+      // Interactive confirmation if --confirm flag not provided
+      if (!options.confirm) {
+        console.log('\n⚠️  This will update the permalink structure for all sites in your configuration.');
+        console.log('   This operation is designed for existing WordPress installations.');
+        console.log('   It uses WP-CLI to safely update permalinks and flush rewrite rules.');
+        console.log(`\n📊 Sites to update: ${config.sites.length}`);
+        console.log(`🔗 New permalink structure: ${options.structure}`);
+        
+        const { PromptService } = await import('./prompt-service');
+        const promptService = new PromptService();
+        
+        const shouldProceed = await promptService.promptConfirmation(
+          'Do you want to proceed with updating permalinks?',
+          [
+            'Update permalink structure for all configured sites',
+            'Use WP-CLI to safely modify WordPress settings',
+            'Flush rewrite rules to ensure changes take effect'
+          ],
+          false
+        );
+        
+        if (!shouldProceed) {
+          console.log('\n❌ Operation cancelled by user.');
+          process.exit(0);
+        }
+      }
 
       // Initialize WordPress manager
       const wordpressManager = new WordPressManager(config);
