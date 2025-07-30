@@ -1,5 +1,5 @@
-import { MySQLManager } from './mysql-manager';
-import { Config, SiteConfig, DeploymentResult } from './types';
+import { MySQLManager } from "./mysql-manager";
+import { Config, SiteConfig, DeploymentResult } from "./types";
 
 export class DatabaseManager {
   private mysqlManager: MySQLManager;
@@ -14,44 +14,56 @@ export class DatabaseManager {
    * Initialize database manager and establish MySQL connection
    */
   async initialize(): Promise<void> {
-    console.log('🗄️  Initializing Database Manager...');
+    console.log("🗄️  Initializing Database Manager...");
     await this.mysqlManager.connect();
-    
+
     // Get and display server information
     const serverInfo = await this.mysqlManager.getServerInfo();
-    console.log(`✅ Connected to MySQL ${serverInfo.version} at ${serverInfo.host}:${serverInfo.port}`);
+    console.log(
+      `✅ Connected to MySQL ${serverInfo.version} at ${serverInfo.host}:${serverInfo.port}`,
+    );
   }
 
   /**
    * Create databases and users for all sites in the configuration
    */
   async createAllDatabases(): Promise<DeploymentResult[]> {
-    console.log(`\n🚀 Starting database creation for ${this.config.sites.length} site(s)...`);
-    
+    console.log(
+      `\n🚀 Starting database creation for ${this.config.sites.length} site(s)...`,
+    );
+
     const results: DeploymentResult[] = [];
 
     for (let i = 0; i < this.config.sites.length; i++) {
       const site = this.config.sites[i];
-      console.log(`\n📦 [${i + 1}/${this.config.sites.length}] Processing: ${site.site_name}`);
-      
+      console.log(
+        `\n📦 [${i + 1}/${this.config.sites.length}] Processing: ${site.site_name}`,
+      );
+
       try {
         const result = await this.createSiteDatabase(site);
         results.push(result);
-        
-        if (result.status === 'success') {
-          console.log(`✅ ${site.site_name}: Database setup completed successfully`);
+
+        if (result.status === "success") {
+          console.log(
+            `✅ ${site.site_name}: Database setup completed successfully`,
+          );
         } else {
-          console.log(`⚠️  ${site.site_name}: Database setup completed with warnings`);
+          console.log(
+            `⚠️  ${site.site_name}: Database setup completed with warnings`,
+          );
         }
-        
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`❌ ${site.site_name}: Database setup failed - ${errorMessage}`);
-        
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `❌ ${site.site_name}: Database setup failed - ${errorMessage}`,
+        );
+
         results.push({
           site_name: site.site_name,
-          status: 'failed',
-          errors: [errorMessage]
+          status: "failed",
+          errors: [errorMessage],
         });
       }
     }
@@ -69,34 +81,39 @@ export class DatabaseManager {
 
     try {
       // Use clean slate approach: drop and recreate everything fresh
-      await this.mysqlManager.createDatabaseAndUserClean(databaseName, username, password, 'localhost');
+      await this.mysqlManager.createDatabaseAndUserClean(
+        databaseName,
+        username,
+        password,
+        "localhost",
+      );
 
       // Test the connection
       const connectionTest = await this.mysqlManager.testDatabaseConnection(
-        username, 
-        password, 
-        databaseName, 
-        'localhost'
+        username,
+        password,
+        databaseName,
+        "localhost",
       );
 
       if (!connectionTest) {
-        throw new Error('Database connection test failed after creation');
+        throw new Error("Database connection test failed after creation");
       }
 
       return {
         site_name: site.site_name,
-        status: 'success',
+        status: "success",
         database_info: {
           database_name: databaseName,
           username: username,
           password: password,
           host: this.config.mysql.host,
-          port: this.config.mysql.port
-        }
+          port: this.config.mysql.port,
+        },
       };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Database creation failed: ${errorMessage}`);
     }
   }
@@ -114,23 +131,28 @@ export class DatabaseManager {
     const password = this.config.mysql.sharedDbPassword;
 
     try {
-      const databaseExists = await this.mysqlManager.databaseExists(databaseName);
-      const userExists = await this.mysqlManager.userExists(username, 'localhost');
-      
+      const databaseExists =
+        await this.mysqlManager.databaseExists(databaseName);
+      const userExists = await this.mysqlManager.userExists(
+        username,
+        "localhost",
+      );
+
       let canConnect = false;
       if (databaseExists && userExists) {
         canConnect = await this.mysqlManager.testDatabaseConnection(
-          username, 
-          password, 
-          databaseName, 
-          'localhost'
+          username,
+          password,
+          databaseName,
+          "localhost",
         );
       }
 
       return { databaseExists, userExists, canConnect };
-
     } catch (error) {
-      console.error(`Error checking site database: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(
+        `Error checking site database: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return { databaseExists: false, userExists: false, canConnect: false };
     }
   }
@@ -139,20 +161,26 @@ export class DatabaseManager {
    * Generate database creation report
    */
   async generateReport(): Promise<void> {
-    console.log('\n📊 Database Status Report');
-    console.log('========================');
+    console.log("\n📊 Database Status Report");
+    console.log("========================");
 
     for (let i = 0; i < this.config.sites.length; i++) {
       const site = this.config.sites[i];
       console.log(`\n${i + 1}. ${site.site_name}`);
-      
+
       try {
         const status = await this.checkSiteDatabase(site);
-        
-        console.log(`   Database (${site.database_name}): ${status.databaseExists ? '✅ Exists' : '❌ Missing'}`);
-        console.log(`   User (${site.db_user}@localhost): ${status.userExists ? '✅ Exists' : '❌ Missing'}`);
-        console.log(`   Connection Test: ${status.canConnect ? '✅ Success' : '❌ Failed'}`);
-        
+
+        console.log(
+          `   Database (${site.database_name}): ${status.databaseExists ? "✅ Exists" : "❌ Missing"}`,
+        );
+        console.log(
+          `   User (${site.db_user}@localhost): ${status.userExists ? "✅ Exists" : "❌ Missing"}`,
+        );
+        console.log(
+          `   Connection Test: ${status.canConnect ? "✅ Success" : "❌ Failed"}`,
+        );
+
         if (status.databaseExists && status.userExists && status.canConnect) {
           console.log(`   Status: 🟢 Ready for WordPress`);
         } else if (status.databaseExists || status.userExists) {
@@ -160,10 +188,11 @@ export class DatabaseManager {
         } else {
           console.log(`   Status: 🔴 Not configured`);
         }
-        
       } catch (error) {
         console.log(`   Status: ❌ Error checking status`);
-        console.log(`   Error: ${error instanceof Error ? error.message : String(error)}`);
+        console.log(
+          `   Error: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   }
@@ -173,66 +202,73 @@ export class DatabaseManager {
    * This is safer than full cleanup as it only removes WordPress data
    */
   async resetWordPressTables(): Promise<void> {
-    console.log('\n🔄 Resetting WordPress tables in all databases...');
-    console.log('⚠️  WARNING: This will delete all WordPress data but keep databases and users!');
+    console.log("\n🔄 Resetting WordPress tables in all databases...");
+    console.log(
+      "⚠️  WARNING: This will delete all WordPress data but keep databases and users!",
+    );
 
     for (const site of this.config.sites) {
       const databaseName = site.database_name!;
 
       try {
         console.log(`\n🗑️  Resetting WordPress tables for ${site.site_name}:`);
-        
+
         // Check if database exists
         const dbExists = await this.mysqlManager.databaseExists(databaseName);
         if (!dbExists) {
-          console.log(`   ℹ️  Database ${databaseName} doesn't exist, skipping`);
+          console.log(
+            `   ℹ️  Database ${databaseName} doesn't exist, skipping`,
+          );
           continue;
         }
 
         // Connect to the specific database
-        const mysql = require('mysql2/promise');
+        const mysql = require("mysql2/promise");
         const connection = await mysql.createConnection({
           host: this.config.mysql.host,
           port: this.config.mysql.port,
           user: this.config.mysql.rootUser,
           password: this.config.mysql.rootPassword,
-          database: databaseName
+          database: databaseName,
         });
 
         // Get all tables that start with 'wp_'
-        const [tables] = await connection.execute(
-          "SHOW TABLES LIKE 'wp_%'"
-        );
+        const [tables] = await connection.execute("SHOW TABLES LIKE 'wp_%'");
 
         if (Array.isArray(tables) && tables.length > 0) {
-          console.log(`   📊 Found ${tables.length} WordPress tables to remove`);
-          
+          console.log(
+            `   📊 Found ${tables.length} WordPress tables to remove`,
+          );
+
           // Disable foreign key checks to avoid dependency issues
-          await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
-          
+          await connection.execute("SET FOREIGN_KEY_CHECKS = 0");
+
           // Drop each WordPress table
           for (const tableRow of tables) {
             const tableName = Object.values(tableRow as any)[0] as string;
             await connection.execute(`DROP TABLE IF EXISTS \`${tableName}\``);
             console.log(`   ✅ Dropped table: ${tableName}`);
           }
-          
+
           // Re-enable foreign key checks
-          await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
-          
-          console.log(`   ✅ All WordPress tables removed from ${databaseName}`);
+          await connection.execute("SET FOREIGN_KEY_CHECKS = 1");
+
+          console.log(
+            `   ✅ All WordPress tables removed from ${databaseName}`,
+          );
         } else {
           console.log(`   ℹ️  No WordPress tables found in ${databaseName}`);
         }
 
         await connection.end();
-
       } catch (error) {
-        console.error(`   ❌ Error resetting ${site.site_name}: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(
+          `   ❌ Error resetting ${site.site_name}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 
-    console.log('\n✅ WordPress table reset completed.');
+    console.log("\n✅ WordPress table reset completed.");
   }
 
   /**
@@ -240,8 +276,10 @@ export class DatabaseManager {
    * WARNING: This will delete all data!
    */
   async cleanupAllDatabases(): Promise<void> {
-    console.log('\n🧹 Cleaning up databases and users...');
-    console.log('⚠️  WARNING: This will permanently delete all databases and users!');
+    console.log("\n🧹 Cleaning up databases and users...");
+    console.log(
+      "⚠️  WARNING: This will permanently delete all databases and users!",
+    );
 
     for (const site of this.config.sites) {
       const databaseName = site.database_name!;
@@ -249,33 +287,28 @@ export class DatabaseManager {
 
       try {
         console.log(`\n🗑️  Cleaning up ${site.site_name}:`);
-        
-        // Drop database
-        const dbExists = await this.mysqlManager.databaseExists(databaseName);
-        if (dbExists) {
-          await this.mysqlManager.executeQuery(`DROP DATABASE \`${databaseName}\``);
-          console.log(`   ✅ Database ${databaseName} dropped`);
-        } else {
-          console.log(`   ℹ️  Database ${databaseName} doesn't exist`);
-        }
 
-        // Drop user
-        const userExists = await this.mysqlManager.userExists(username, 'localhost');
-        if (userExists) {
-          await this.mysqlManager.executeQuery(`DROP USER \`${username}\`@\`localhost\``);
-          console.log(`   ✅ User ${username}@localhost dropped`);
-        } else {
-          console.log(`   ℹ️  User ${username}@localhost doesn't exist`);
-        }
+        // Drop database if it exists - using IF EXISTS to avoid errors
+        await this.mysqlManager.executeQuery(
+          `DROP DATABASE IF EXISTS \`${databaseName}\``,
+        );
+        console.log(`   ✅ Database ${databaseName} dropped (if it existed)`);
 
+        // Drop user if it exists - using IF EXISTS to avoid errors
+        await this.mysqlManager.executeQuery(
+          `DROP USER IF EXISTS \`${username}\`@\`localhost\``,
+        );
+        console.log(`   ✅ User ${username}@localhost dropped (if it existed)`);
       } catch (error) {
-        console.error(`   ❌ Error cleaning up ${site.site_name}: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(
+          `   ❌ Error cleaning up ${site.site_name}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 
     // Flush privileges after cleanup
-    await this.mysqlManager.executeQuery('FLUSH PRIVILEGES');
-    console.log('\n✅ Cleanup completed. Privileges flushed.');
+    await this.mysqlManager.executeQuery("FLUSH PRIVILEGES");
+    console.log("\n✅ Cleanup completed. Privileges flushed.");
   }
 
   /**
@@ -283,7 +316,7 @@ export class DatabaseManager {
    */
   async close(): Promise<void> {
     await this.mysqlManager.disconnect();
-    console.log('✅ Database Manager closed');
+    console.log("✅ Database Manager closed");
   }
 
   /**
@@ -296,10 +329,10 @@ export class DatabaseManager {
     skipped: number;
   } {
     const total = results.length;
-    const successful = results.filter(r => r.status === 'success').length;
-    const failed = results.filter(r => r.status === 'failed').length;
-    const skipped = results.filter(r => r.status === 'skipped').length;
+    const successful = results.filter((r) => r.status === "success").length;
+    const failed = results.filter((r) => r.status === "failed").length;
+    const skipped = results.filter((r) => r.status === "skipped").length;
 
     return { total, successful, failed, skipped };
   }
-} 
+}

@@ -9,6 +9,15 @@ import {
 } from "./types";
 
 export class ConfigParser {
+  private static noDbSuffix: boolean = false;
+
+  /**
+   * Set whether to use _db suffix for database names
+   */
+  static setNoDbSuffix(value: boolean): void {
+    this.noDbSuffix = value;
+  }
+
   /**
    * Parse configuration file (JSON or CSV)
    */
@@ -164,7 +173,9 @@ export class ConfigParser {
       const site: SiteConfig = {
         site_name: mappedRow.site_name,
         directory_path: mappedRow.directory_path,
-        database_name: mappedRow.site_name, // Use site name as-is for database name
+        database_name: this.noDbSuffix
+          ? mappedRow.site_name
+          : `${mappedRow.site_name}_db`,
         db_user: `${mappedRow.site_name}_user`,
         wordpress_site_title: mappedRow.wordpress_site_title,
         wordpress_admin_username: mappedRow.wordpress_admin_username,
@@ -253,7 +264,9 @@ export class ConfigParser {
     config.sites.forEach((site) => {
       // Auto-generate database name if not provided
       if (!site.database_name) {
-        site.database_name = site.site_name; // Use site name as-is for database name
+        site.database_name = this.noDbSuffix
+          ? site.site_name
+          : `${site.site_name}_db`;
       }
 
       // Auto-generate database user if not provided
