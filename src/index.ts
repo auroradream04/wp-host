@@ -39,6 +39,10 @@ program
     "--no-db-suffix",
     "Use site names as database names without _db suffix",
   )
+  .option(
+    "--use-existing-databases",
+    "Use existing databases instead of dropping and recreating them",
+  )
   .action(async (options) => {
     const configPath = path.resolve(options.config);
 
@@ -102,7 +106,9 @@ program
       const databaseManager = new DatabaseManager(config);
       await databaseManager.initialize();
 
-      const dbResults = await databaseManager.createAllDatabases();
+      const dbResults = await databaseManager.createAllDatabases(
+        options.useExistingDatabases,
+      );
       const dbSummary = databaseManager.getSummary(dbResults);
 
       if (dbSummary.failed > 0) {
@@ -373,6 +379,10 @@ program
     "--no-db-suffix",
     "Use site names as database names without _db suffix",
   )
+  .option(
+    "--use-existing-databases",
+    "Use existing databases instead of dropping and recreating them",
+  )
   .action(async (options) => {
     console.log("🗄️  WordPress Database Creator");
     console.log("==============================");
@@ -406,7 +416,9 @@ program
       await databaseManager.initialize();
 
       // Create all databases
-      const results = await databaseManager.createAllDatabases();
+      const results = await databaseManager.createAllDatabases(
+        options.useExistingDatabases,
+      );
 
       // Show summary
       const summary = databaseManager.getSummary(results);
@@ -1443,6 +1455,14 @@ program.on("--help", () => {
   );
   console.log(
     "  $ wp-hosting-automation cleanup-nosuffix-databases --confirm  # Clean up databases without _db suffix",
+  );
+  console.log("");
+  console.log("  # Using existing databases (for migrations)");
+  console.log(
+    "  $ wp-hosting-automation deploy --use-existing-databases  # Use existing databases without dropping",
+  );
+  console.log(
+    "  $ wp-hosting-automation create-databases --use-existing-databases  # Setup users for existing DBs",
   );
   console.log("");
   console.log("Configuration file formats:");

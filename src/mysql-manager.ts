@@ -405,4 +405,69 @@ export class MySQLManager {
       );
     }
   }
+
+  /**
+   * Create or use existing database and ensure user has access
+   */
+  async createOrUseDatabase(
+    databaseName: string,
+    username: string,
+    password: string,
+    host: string = "localhost",
+  ): Promise<{ created: boolean; userCreated: boolean }> {
+    if (!this.connection) {
+      throw new Error("Not connected to MySQL. Call connect() first.");
+    }
+
+    let created = false;
+    let userCreated = false;
+
+    try {
+      // Check if database exists
+      const dbExists = await this.databaseExists(databaseName);
+
+      if (!dbExists) {
+        // Create database if it doesn't exist
+        await this.connection.execute(`CREATE DATABASE \`${databaseName}\``);
+        created = true;
+        console.log(`✅ Created new database: ${databaseName}`);
+      } else {
+        console.log(`ℹ️  Using existing database: ${databaseName}`);
+      }
+
+      // Check if user exists
+      const userExists = await this.userExists(username, host);
+
+      if (!userExists) {
+        // Create user if it doesn't exist
+        const createUserSQL = `CREATE USER \`${username}\`@\`${host}\` IDENTIFIED BY '${password.replace(/'/g, "''")}'`;
+        await this.connection.execute(createUserSQL);
+        userCreated = true;
+        console.log(`✅ Created new user: ${username}@${host}`);
+      } else {
+        console.log(`ℹ️  User already exists: ${username}@${host}`);
+        // Update password for existing user
+        const updatePasswordSQL = `ALTER USER \`${username}\`@\`${host}\` IDENTIFIED BY '${password.replace(/'/g, "''")}'`;
+        await this.connection.execute(updatePasswordSQL);
+        console.log(`✅ Updated password for user: ${username}@${host}`);
+      }
+
+      // Grant privileges (in case they don't have them already)
+      await this.connection.execute(
+        `GRANT ALL PRIVILEGES ON \`${databaseName}\`.* TO \`${username}\`@\`${host}\``,
+      );
+
+      // Flush privileges
+      await this.connection.execute("FLUSH PRIVILEGES");
+      console.log(
+        `✅ Ensured privileges for ${username}@${host} on ${databaseName}`,
+      );
+
+      return { created, userCreated };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create or use database: ${errorMessage}`);
+    }
+  }
 }
